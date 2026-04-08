@@ -37,6 +37,8 @@
 - 現在のベット額を表示する
 - 必要なアクションボタンを表示する
 - BB / SB などの位置情報を表示する
+- ポット額を表示する
+- 自分のスタックとコール額を表示する
 - MVP では見た目より情報の分かりやすさを優先する
 
 ### MVP の範囲
@@ -81,6 +83,12 @@
 - `currentPhase`
 - `hand`
 - `board`
+- `pot`
+- `myStack`
+- `currentBet`
+- `toCall`
+- `positions`
+- `availableActions`
 - `revealedDeckInfo`
 - `connectionStatus`
 - `serverError`
