@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "wrangler dev --port 8788",
     "deploy": "wrangler deploy",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "import:stocks": "node ./scripts/import-stocks.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250410.0",
