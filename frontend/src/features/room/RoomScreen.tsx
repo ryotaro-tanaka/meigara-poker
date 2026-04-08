@@ -1,4 +1,7 @@
+import { LobbyPanel } from "../../components/LobbyPanel";
 import { PlayerList } from "../../components/PlayerList";
+import { RoomHeader } from "../../components/RoomHeader";
+import { SharePanel } from "../../components/SharePanel";
 import { StatusBadge } from "../../components/StatusBadge";
 import { GameScreen } from "../game/GameScreen";
 import type { AppState } from "../../state/app-state";
@@ -12,53 +15,76 @@ interface RoomScreenProps {
 }
 
 export function RoomScreen({ state, shareUrl, onNameSubmit, onNameChange, onStartGame }: RoomScreenProps) {
-  const isGameStarted = state.room?.phase !== "waiting";
+  const phase = state.room?.phase ?? "waiting";
+  const isWaiting = phase === "waiting";
+  const canStart = Boolean(state.room && state.room.playerCount >= 2 && isWaiting);
 
   return (
     <main className="app-shell">
-      <section className="hero-card compact">
-        <div className="hero-topline">
-          <p className="eyebrow">Room {state.roomId}</p>
-          <StatusBadge status={state.connectionStatus} />
-        </div>
-        <h1>{state.room?.roomName ?? "ルームを読み込み中..."}</h1>
-        <p className="description">
-          待機画面からゲーム終了まで同じ WebSocket 接続を使い、サーバー状態をそのまま反映します。
-        </p>
-        {state.serverError ? <p className="error-text">{state.serverError}</p> : null}
-      </section>
+      <RoomHeader
+        roomId={state.roomId}
+        roomName={state.room?.roomName ?? "ルームを読み込み中..."}
+        description={
+          isWaiting
+            ? "名前を決めて参加者を待ちます。2 人以上そろうとゲームを開始できます。"
+            : "公開される場札と自分の手札を見ながら、showdown までの進行を確認します。"
+        }
+        status={state.connectionStatus}
+        phase={state.room?.phase ?? null}
+        playerCount={state.room?.playerCount ?? 0}
+        serverError={state.serverError}
+      />
 
-      <section className="content-grid">
-        <section className="panel stack">
-          <div className="section-heading">
-            <h2>待機情報</h2>
-          </div>
-          <label className="field">
-            <span>表示名</span>
-            <input value={state.playerName} onChange={(event) => onNameChange(event.target.value)} placeholder="名前を入力" />
-          </label>
-          <div className="action-row">
-            <button className="secondary-button" onClick={onNameSubmit}>
-              名前を決定
-            </button>
-            <button className="primary-button" onClick={onStartGame} disabled={!state.room || state.room.playerCount < 2 || isGameStarted}>
-              ゲーム開始
-            </button>
-          </div>
-          <p className="meta-text">共有 URL: {shareUrl}</p>
-          <p className="meta-text">参加人数: {state.room?.playerCount ?? 0} / 6</p>
-          <p className="meta-text">現在 phase: {state.room?.phase ?? "waiting"}</p>
+      {isWaiting ? (
+        <section className="room-layout">
+          <section className="room-main stack">
+            <LobbyPanel
+              playerName={state.playerName}
+              playerCount={state.room?.playerCount ?? 0}
+              canStart={canStart}
+              onNameChange={onNameChange}
+              onNameSubmit={onNameSubmit}
+              onStartGame={onStartGame}
+            />
+            <SharePanel shareUrl={shareUrl} />
+          </section>
+          <aside className="room-side stack">
+            <section className="panel stack">
+              <div className="section-heading">
+                <h2>待機者一覧</h2>
+                <StatusBadge status={state.connectionStatus} />
+              </div>
+              <PlayerList players={state.room?.players ?? []} selfPlayerId={state.playerId} />
+            </section>
+            <section className="panel stack">
+              <div className="section-heading">
+                <h2>ルール</h2>
+              </div>
+              <ul className="guide-list">
+                <li>手札 2 枚と場札 5 枚で最強の 5 枚役を作ります。</li>
+                <li>場札は 3 枚 → 1 枚 → 1 枚の順で公開されます。</li>
+                <li>同じ役になった場合はそのまま引き分けです。</li>
+              </ul>
+            </section>
+          </aside>
         </section>
-
-        <section className="panel stack">
-          <div className="section-heading">
-            <h2>待機者一覧</h2>
-          </div>
-          <PlayerList players={state.room?.players ?? []} selfPlayerId={state.playerId} />
+      ) : (
+        <section className="room-layout game-mode">
+          <section className="room-main stack">
+            <GameScreen state={state} />
+          </section>
+          <aside className="room-side stack">
+            <section className="panel stack">
+              <div className="section-heading">
+                <h2>参加者一覧</h2>
+                <StatusBadge status={state.connectionStatus} />
+              </div>
+              <PlayerList players={state.room?.players ?? []} selfPlayerId={state.playerId} />
+            </section>
+            <SharePanel shareUrl={shareUrl} />
+          </aside>
         </section>
-      </section>
-
-      <GameScreen state={state} />
+      )}
     </main>
   );
 }
