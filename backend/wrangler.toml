@@ -1,0 +1,12 @@
+name = "meigara-poker-worker"
+main = "src/index.ts"
+compatibility_date = "2026-04-08"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "meigara-poker"
+database_id = "38b047fe-6b6a-4632-8e75-c9afe662e8a3"
+remote = true
+
+[vars]
+APP_NAME = "meigara-poker"

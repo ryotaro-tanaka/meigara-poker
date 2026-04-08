@@ -1,2 +1,8 @@
 .codex
 .notes
+node_modules
+dist
+.wrangler
+*.db
+*.sqlite
+*.sqlite3
