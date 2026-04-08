@@ -1,34 +1,12 @@
-import { buildDeck, type DeckCard } from "./lib/deck";
-
-interface PlayerState {
-  playerId: string;
-  name: string;
-  joinedAt: string;
-  connected: boolean;
-}
-
-type RoomPhase = "waiting" | "started";
-
-interface RoomState {
-  roomId: string;
-  roomName: string;
-  players: PlayerState[];
-  phase: RoomPhase;
-  deck: DeckCard[];
-  selectedIndustries: string[];
-  createdAt: string;
-}
-
-interface RoomSnapshot {
-  roomId: string;
-  roomName: string;
-  phase: RoomPhase;
-  players: PlayerState[];
-  playerCount: number;
-  selectedIndustries: string[];
-  deckCount: number;
-  createdAt: string;
-}
+import { buildDeck } from "./lib/deck";
+import {
+  advanceRoomState,
+  createPlayerRoomState,
+  createRoomSnapshot,
+  createStartedRoomState,
+  type PlayerState,
+  type RoomState,
+} from "./lib/game-progression";
 
 interface RoomCreateRequest {
   roomName: string;
@@ -47,6 +25,7 @@ interface Env {
 
 const ROOM_ID_LENGTH = 6;
 const ROOM_ID_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const PHASE_ADVANCE_DELAY_MS = 1500;
 
 function json(data: unknown, init?: ResponseInit): Response {
   return new Response(JSON.stringify(data, null, 2), {
@@ -75,6 +54,10 @@ function normalizePlayer(state: RoomState, playerId: string, name = ""): { state
     return { state, player: existing, created: false };
   }
 
+  if (state.phase !== "waiting") {
+    throw new Error("Cannot join after the game has started.");
+  }
+
   const player: PlayerState = {
     playerId,
     name,
@@ -84,19 +67,6 @@ function normalizePlayer(state: RoomState, playerId: string, name = ""): { state
 
   state.players.push(player);
   return { state, player, created: true };
-}
-
-function makeSnapshot(state: RoomState): RoomSnapshot {
-  return {
-    roomId: state.roomId,
-    roomName: state.roomName,
-    phase: state.phase,
-    players: state.players,
-    playerCount: state.players.length,
-    selectedIndustries: state.selectedIndustries,
-    deckCount: state.deck.length,
-    createdAt: state.createdAt,
-  };
 }
 
 function makeRoomId(): string {
@@ -207,6 +177,8 @@ export class RoomDurableObject {
   private ctx: DurableObjectState;
   private env: Env;
   private sessions = new Map<string, WebSocket>();
+  private progressionTimer: ReturnType<typeof setTimeout> | null = null;
+  private progressionToken = 0;
 
   constructor(ctx: DurableObjectState, env: Env) {
     this.ctx = ctx;
@@ -225,29 +197,129 @@ export class RoomDurableObject {
     socket.send(JSON.stringify(payload));
   }
 
-  private broadcast(payload: unknown): void {
-    const message = JSON.stringify(payload);
+  private sendToPlayer(playerId: string, payload: unknown): void {
+    const socket = this.sessions.get(playerId);
 
-    for (const socket of this.sessions.values()) {
-      socket.send(message);
+    if (socket) {
+      this.send(socket, payload);
     }
   }
 
+  private clearProgressionTimer(): void {
+    if (this.progressionTimer) {
+      clearTimeout(this.progressionTimer);
+      this.progressionTimer = null;
+    }
+  }
+
+  private broadcastRoomSnapshot(eventType: "player_joined" | "player_updated", state: RoomState): void {
+    const room = createRoomSnapshot(state);
+
+    for (const socket of this.sessions.values()) {
+      this.send(socket, {
+        type: eventType,
+        room,
+      });
+    }
+  }
+
+  private sendRoomState(state: RoomState, playerId: string): void {
+    this.sendToPlayer(playerId, {
+      type: "room_state",
+      ...createPlayerRoomState(state, playerId),
+    });
+  }
+
+  private broadcastGameStarted(state: RoomState): void {
+    for (const [playerId, socket] of this.sessions.entries()) {
+      this.send(socket, {
+        type: "game_started",
+        roomId: state.roomId,
+        phase: state.phase,
+        selectedIndustries: state.selectedIndustries,
+        playerCount: state.players.length,
+        ...createPlayerRoomState(state, playerId),
+      });
+    }
+  }
+
+  private broadcastBoardRevealed(state: RoomState): void {
+    const room = createRoomSnapshot(state);
+
+    for (const socket of this.sessions.values()) {
+      this.send(socket, {
+        type: "board_revealed",
+        phase: state.phase,
+        board: room.board,
+        revealedCount: state.boardRevealCount,
+        room,
+      });
+    }
+  }
+
+  private broadcastGameResult(state: RoomState): void {
+    const room = createRoomSnapshot(state);
+    const winners = state.results?.winners ?? [];
+    const results = state.results?.results ?? [];
+
+    for (const [playerId, socket] of this.sessions.entries()) {
+      this.send(socket, {
+        type: "game_result",
+        phase: state.phase,
+        board: room.board,
+        winners,
+        results,
+        room,
+        hand: state.handsByPlayer[playerId] ?? [],
+      });
+    }
+  }
+
+  private scheduleNextPhase(token: number): void {
+    this.clearProgressionTimer();
+    this.progressionTimer = setTimeout(() => {
+      void this.advancePhase(token);
+    }, PHASE_ADVANCE_DELAY_MS);
+  }
+
+  private async advancePhase(token: number): Promise<void> {
+    if (token !== this.progressionToken) {
+      return;
+    }
+
+    const state = await this.loadState();
+
+    if (!state || state.phase === "waiting" || state.phase === "showdown") {
+      this.clearProgressionTimer();
+      return;
+    }
+
+    const nextState = advanceRoomState(state);
+    await this.saveState(nextState);
+
+    if (nextState.phase === "showdown") {
+      this.broadcastGameResult(nextState);
+      this.clearProgressionTimer();
+      return;
+    }
+
+    this.broadcastBoardRevealed(nextState);
+    this.scheduleNextPhase(token);
+  }
+
   private async startGame(state: RoomState): Promise<RoomState> {
-    if (state.phase !== "waiting") {
-      throw new Error("Game has already started.");
-    }
-
-    if (state.players.length < 2 || state.players.length > 6) {
-      throw new Error("Game can start only with 2 to 6 players.");
-    }
-
     const { deck, selectedIndustries } = await buildDeck(this.env.DB);
-    state.phase = "started";
-    state.deck = deck;
-    state.selectedIndustries = selectedIndustries;
-    await this.saveState(state);
-    return state;
+    const nextState = createStartedRoomState({
+      ...state,
+      deck,
+      selectedIndustries,
+    });
+
+    await this.saveState(nextState);
+    this.progressionToken += 1;
+    this.broadcastGameStarted(nextState);
+    this.scheduleNextPhase(this.progressionToken);
+    return nextState;
   }
 
   private async handleClientEvent(playerId: string, payload: ClientEvent): Promise<void> {
@@ -258,59 +330,46 @@ export class RoomDurableObject {
     }
 
     if (payload.type === "ping") {
-      const socket = this.sessions.get(playerId);
-      if (socket) {
-        this.send(socket, { type: "pong" });
-      }
+      this.sendToPlayer(playerId, { type: "pong" });
       return;
     }
 
     if (payload.type === "join_room") {
-      const { created } = normalizePlayer(state, playerId, payload.name?.trim() ?? "");
-      await this.saveState(state);
-      this.broadcast({
-        type: created ? "player_joined" : "player_updated",
-        room: makeSnapshot(state),
-      });
+      try {
+        const { created } = normalizePlayer(state, playerId, payload.name?.trim() ?? "");
+        await this.saveState(state);
+        this.broadcastRoomSnapshot(created ? "player_joined" : "player_updated", state);
+      } catch (error) {
+        this.sendToPlayer(playerId, {
+          type: "error",
+          message: error instanceof Error ? error.message : "Failed to join the room.",
+        });
+      }
       return;
     }
 
     if (payload.type === "set_name") {
       const player = state.players.find((item) => item.playerId === playerId);
+
       if (!player) {
-        const socket = this.sessions.get(playerId);
-        if (socket) {
-          this.send(socket, { type: "error", message: "Player has not joined the room yet." });
-        }
+        this.sendToPlayer(playerId, { type: "error", message: "Player has not joined the room yet." });
         return;
       }
+
       player.name = payload.name?.trim() ?? "";
       await this.saveState(state);
-      this.broadcast({
-        type: "player_updated",
-        room: makeSnapshot(state),
-      });
+      this.broadcastRoomSnapshot("player_updated", state);
       return;
     }
 
     if (payload.type === "start_game") {
       try {
-        const nextState = await this.startGame(state);
-        this.broadcast({
-          type: "game_started",
-          roomId: nextState.roomId,
-          phase: nextState.phase,
-          selectedIndustries: nextState.selectedIndustries,
-          deckCount: nextState.deck.length,
-        });
+        await this.startGame(state);
       } catch (error) {
-        const socket = this.sessions.get(playerId);
-        if (socket) {
-          this.send(socket, {
-            type: "error",
-            message: error instanceof Error ? error.message : "Failed to start game.",
-          });
-        }
+        this.sendToPlayer(playerId, {
+          type: "error",
+          message: error instanceof Error ? error.message : "Failed to start game.",
+        });
       }
     }
   }
@@ -326,6 +385,7 @@ export class RoomDurableObject {
       }
 
       const existing = await this.loadState();
+
       if (existing) {
         return errorJson("Room already exists.", 409);
       }
@@ -337,6 +397,10 @@ export class RoomDurableObject {
         phase: "waiting",
         deck: [],
         selectedIndustries: [],
+        handsByPlayer: {},
+        board: [],
+        boardRevealCount: 0,
+        results: null,
         createdAt: new Date().toISOString(),
       };
 
@@ -348,6 +412,7 @@ export class RoomDurableObject {
     }
 
     const state = await this.loadState();
+
     if (!state) {
       return errorJson("Room not found.", 404);
     }
@@ -355,27 +420,21 @@ export class RoomDurableObject {
     if (request.method === "GET" && url.pathname.startsWith("/rooms/")) {
       return json({
         ok: true,
-        room: makeSnapshot(state),
+        room: createRoomSnapshot(state),
       });
     }
 
     if (request.method === "POST" && url.pathname.endsWith("/start")) {
       try {
         const nextState = await this.startGame(state);
-        this.broadcast({
-          type: "game_started",
-          roomId: nextState.roomId,
-          phase: nextState.phase,
-          selectedIndustries: nextState.selectedIndustries,
-          deckCount: nextState.deck.length,
-        });
 
         return json({
           ok: true,
           roomId: nextState.roomId,
           phase: nextState.phase,
           selectedIndustries: nextState.selectedIndustries,
-          deckCount: nextState.deck.length,
+          playerCount: nextState.players.length,
+          boardRevealCount: nextState.boardRevealCount,
         });
       } catch (error) {
         return errorJson(error instanceof Error ? error.message : "Failed to start game.", 400);
@@ -389,13 +448,32 @@ export class RoomDurableObject {
         return errorJson("playerId is required.", 400);
       }
 
+      const existingPlayer = state.players.find((player) => player.playerId === playerId);
+
+      if (!existingPlayer && state.phase !== "waiting") {
+        return errorJson("Cannot join after the game has started.", 400);
+      }
+
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);
       server.accept();
       this.sessions.set(playerId, server);
 
-      const { state: nextState } = normalizePlayer(state, playerId);
-      await this.saveState(nextState);
+      let nextState = state;
+
+      try {
+        const normalized = normalizePlayer(state, playerId);
+        nextState = normalized.state;
+        await this.saveState(nextState);
+
+        if (normalized.created) {
+          this.broadcastRoomSnapshot("player_joined", nextState);
+        }
+      } catch (error) {
+        this.sessions.delete(playerId);
+        server.close(1011, error instanceof Error ? error.message : "Failed to join room.");
+        return errorJson(error instanceof Error ? error.message : "Failed to join room.", 400);
+      }
 
       server.addEventListener("message", (event) => {
         void this.handleClientEvent(playerId, JSON.parse(String(event.data)) as ClientEvent);
@@ -405,25 +483,22 @@ export class RoomDurableObject {
         this.sessions.delete(playerId);
         void (async () => {
           const current = await this.loadState();
+
           if (!current) {
             return;
           }
+
           const player = current.players.find((item) => item.playerId === playerId);
+
           if (player) {
             player.connected = false;
             await this.saveState(current);
-            this.broadcast({
-              type: "player_updated",
-              room: makeSnapshot(current),
-            });
+            this.broadcastRoomSnapshot("player_updated", current);
           }
         })();
       });
 
-      this.send(server, {
-        type: "room_state",
-        room: makeSnapshot(nextState),
-      });
+      this.sendRoomState(nextState, playerId);
 
       return new Response(null, {
         status: 101,
@@ -448,11 +523,13 @@ export default {
     }
 
     const roomMatch = url.pathname.match(/^\/rooms\/([A-Z0-9]+)$/);
+
     if (request.method === "GET" && roomMatch) {
       return handleRoomSnapshot(request, env, roomMatch[1]);
     }
 
     const startMatch = url.pathname.match(/^\/rooms\/([A-Z0-9]+)\/start$/);
+
     if (request.method === "POST" && startMatch) {
       return handleRoomStart(request, env, startMatch[1]);
     }
