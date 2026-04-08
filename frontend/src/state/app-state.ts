@@ -4,8 +4,11 @@ import type {
   CreateRoomResponse,
   DeckCard,
   GameResultSummary,
+  PlayerActionType,
+  PlayerPositionMap,
   RoomSnapshot,
   ServerEvent,
+  SidePot,
 } from "../lib/types";
 
 export interface AppState {
@@ -21,6 +24,15 @@ export interface AppState {
   connectionStatus: ConnectionStatus;
   serverError: string | null;
   isCreatingRoom: boolean;
+  pot: number;
+  sidePots: SidePot[];
+  myStack: number;
+  currentBet: number;
+  toCall: number;
+  positions: PlayerPositionMap;
+  availableActions: PlayerActionType[];
+  currentTurnPlayerId: string | null;
+  lastActionMessage: string | null;
 }
 
 export type AppAction =
@@ -53,6 +65,19 @@ export function createInitialState(route: AppRoute, playerName = ""): AppState {
     connectionStatus: "idle",
     serverError: null,
     isCreatingRoom: false,
+    pot: 0,
+    sidePots: [],
+    myStack: 0,
+    currentBet: 0,
+    toCall: 0,
+    positions: {
+      dealer: null,
+      smallBlind: null,
+      bigBlind: null,
+    },
+    availableActions: [],
+    currentTurnPlayerId: null,
+    lastActionMessage: null,
   };
 }
 
@@ -63,6 +88,13 @@ function applyRoomState(
     hand?: DeckCard[];
     board?: DeckCard[];
     results?: GameResultSummary | null;
+    myStack?: number;
+    currentBet?: number;
+    toCall?: number;
+    positions?: PlayerPositionMap;
+    availableActions?: PlayerActionType[];
+    pot?: number;
+    sidePots?: SidePot[];
   },
 ): AppState {
   return {
@@ -73,8 +105,41 @@ function applyRoomState(
     selectedIndustries: room.selectedIndustries,
     results: options?.results ?? room.results,
     hand: options?.hand ?? state.hand,
+    pot: options?.pot ?? room.pot,
+    sidePots: options?.sidePots ?? room.sidePots,
+    myStack: options?.myStack ?? state.myStack,
+    currentBet: options?.currentBet ?? state.currentBet,
+    toCall: options?.toCall ?? state.toCall,
+    positions: options?.positions ?? room.positions,
+    availableActions: options?.availableActions ?? state.availableActions,
+    currentTurnPlayerId: room.currentTurnPlayerId,
     serverError: null,
   };
+}
+
+function getPlayerLabel(state: AppState, playerId: string): string {
+  if (playerId === state.playerId) {
+    return "あなた";
+  }
+
+  return state.room?.players.find((player) => player.playerId === playerId)?.name || playerId;
+}
+
+function getActionLabel(action: PlayerActionType): string {
+  switch (action) {
+    case "fold":
+      return "fold";
+    case "check":
+      return "check";
+    case "call":
+      return "call";
+    case "bet":
+      return "bet";
+    case "raise":
+      return "raise";
+    case "all-in":
+      return "all-in";
+  }
 }
 
 export function appReducer(state: AppState, action: AppAction): AppState {
@@ -90,6 +155,20 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         results: action.route.kind === "room" && state.room?.roomId === action.route.roomId ? state.results : null,
         selectedIndustries:
           action.route.kind === "room" && state.room?.roomId === action.route.roomId ? state.selectedIndustries : [],
+        pot: action.route.kind === "room" && state.room?.roomId === action.route.roomId ? state.pot : 0,
+        sidePots: action.route.kind === "room" && state.room?.roomId === action.route.roomId ? state.sidePots : [],
+        myStack: action.route.kind === "room" && state.room?.roomId === action.route.roomId ? state.myStack : 0,
+        currentBet: action.route.kind === "room" && state.room?.roomId === action.route.roomId ? state.currentBet : 0,
+        toCall: action.route.kind === "room" && state.room?.roomId === action.route.roomId ? state.toCall : 0,
+        positions:
+          action.route.kind === "room" && state.room?.roomId === action.route.roomId
+            ? state.positions
+            : { dealer: null, smallBlind: null, bigBlind: null },
+        availableActions:
+          action.route.kind === "room" && state.room?.roomId === action.route.roomId ? state.availableActions : [],
+        currentTurnPlayerId:
+          action.route.kind === "room" && state.room?.roomId === action.route.roomId ? state.currentTurnPlayerId : null,
+        lastActionMessage: action.route.kind === "room" && state.room?.roomId === action.route.roomId ? state.lastActionMessage : null,
         serverError: null,
       };
     case "player_restored":
@@ -177,6 +256,13 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           hand: action.event.hand,
           board: action.event.board,
           results: action.event.results,
+          myStack: action.event.myStack,
+          currentBet: action.event.currentBet,
+          toCall: action.event.toCall,
+          positions: action.event.positions,
+          availableActions: action.event.availableActions,
+          pot: action.event.pot,
+          sidePots: action.event.sidePots,
         });
       }
 
@@ -185,30 +271,43 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       }
 
       if (action.event.type === "game_started") {
-        return applyRoomState(state, action.event.room, {
-          hand: action.event.hand,
-          board: action.event.board,
-          results: action.event.results,
-        });
+        return {
+          ...state,
+          lastActionMessage: "ゲームが開始されました。",
+        };
       }
 
-      if (action.event.type === "board_revealed") {
-        return applyRoomState(state, action.event.room, {
-          board: action.event.board,
-        });
+      if (action.event.type === "action_applied") {
+        return {
+          ...applyRoomState(state, action.event.room),
+          lastActionMessage: `${getPlayerLabel(state, action.event.actorPlayerId)} が ${getActionLabel(action.event.action)}${action.event.amount ? ` ${action.event.amount}` : ""} を実行しました。`,
+        };
+      }
+
+      if (action.event.type === "phase_advanced") {
+        return {
+          ...applyRoomState(state, action.event.room, {
+            board: action.event.board,
+            results: action.event.room.results,
+          }),
+          lastActionMessage: `phase が ${action.event.phase} に進みました。`,
+        };
       }
 
       if (action.event.type === "game_result") {
-        return applyRoomState(state, action.event.room, {
-          hand: action.event.hand,
-          board: action.event.board,
-          results: {
-            isDraw: action.event.winners.length > 1,
-            winners: action.event.winners,
-            results: action.event.results,
-            finalBoard: action.event.board,
-          },
-        });
+        return {
+          ...applyRoomState(state, action.event.room, {
+            board: action.event.board,
+            results: {
+              isDraw: action.event.winners.length > 1,
+              winners: action.event.winners,
+              results: action.event.results,
+              finalBoard: action.event.board,
+              sidePots: action.event.room.results?.sidePots ?? [],
+            },
+          }),
+          lastActionMessage: "ハンドが終了しました。",
+        };
       }
 
       return state;

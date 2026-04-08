@@ -50,6 +50,7 @@ export function App() {
       onNameChange={(name) => dispatch({ type: "player_name_changed", name })}
       onNameSubmit={() => sendEvent({ type: "set_name", name: state.playerName })}
       onStartGame={() => sendEvent({ type: "start_game" })}
+      onPlayerAction={(action, amount) => sendEvent({ type: "player_action", action, amount })}
     />
   );
 }

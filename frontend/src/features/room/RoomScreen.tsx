@@ -5,6 +5,7 @@ import { SharePanel } from "../../components/SharePanel";
 import { StatusBadge } from "../../components/StatusBadge";
 import { GameScreen } from "../game/GameScreen";
 import type { AppState } from "../../state/app-state";
+import type { PlayerActionType } from "../../lib/types";
 
 interface RoomScreenProps {
   state: AppState;
@@ -12,9 +13,10 @@ interface RoomScreenProps {
   onNameSubmit: () => void;
   onNameChange: (name: string) => void;
   onStartGame: () => void;
+  onPlayerAction: (action: PlayerActionType, amount?: number) => void;
 }
 
-export function RoomScreen({ state, shareUrl, onNameSubmit, onNameChange, onStartGame }: RoomScreenProps) {
+export function RoomScreen({ state, shareUrl, onNameSubmit, onNameChange, onStartGame, onPlayerAction }: RoomScreenProps) {
   const phase = state.room?.phase ?? "waiting";
   const isWaiting = phase === "waiting";
   const canStart = Boolean(state.room && state.room.playerCount >= 2 && isWaiting);
@@ -27,7 +29,7 @@ export function RoomScreen({ state, shareUrl, onNameSubmit, onNameChange, onStar
         description={
           isWaiting
             ? "名前を決めて参加者を待ちます。2 人以上そろうとゲームを開始できます。"
-            : "公開される場札と自分の手札を見ながら、showdown までの進行を確認します。"
+            : "自分の手番ではアクションを選び、ベット進行に合わせて pot と場札の変化を確認します。"
         }
         status={state.connectionStatus}
         phase={state.room?.phase ?? null}
@@ -62,8 +64,8 @@ export function RoomScreen({ state, shareUrl, onNameSubmit, onNameChange, onStar
               </div>
               <ul className="guide-list">
                 <li>手札 2 枚と場札 5 枚で最強の 5 枚役を作ります。</li>
-                <li>場札は 3 枚 → 1 枚 → 1 枚の順で公開されます。</li>
-                <li>同じ役になった場合はそのまま引き分けです。</li>
+                <li>SB / BB を置いてから preflop, flop, turn, river の順に進みます。</li>
+                <li>同役でもキッカーまで比較し、完全同値だけ引き分けです。</li>
               </ul>
             </section>
           </aside>
@@ -71,7 +73,7 @@ export function RoomScreen({ state, shareUrl, onNameSubmit, onNameChange, onStar
       ) : (
         <section className="room-layout game-mode">
           <section className="room-main stack">
-            <GameScreen state={state} />
+            <GameScreen state={state} onPlayerAction={onPlayerAction} />
           </section>
           <aside className="room-side stack">
             <section className="panel stack">

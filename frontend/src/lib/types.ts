@@ -13,6 +13,7 @@ export interface PlayerState {
 }
 
 export type RoomPhase = "waiting" | "preflop" | "flop" | "turn" | "river" | "showdown";
+export type PlayerActionType = "fold" | "check" | "call" | "bet" | "raise" | "all-in";
 
 export interface HandEvaluation {
   rank:
@@ -26,15 +27,31 @@ export interface HandEvaluation {
     | "one_pair"
     | "high_card";
   cards: DeckCard[];
+  comparisonValues: number[];
+}
+
+export interface SidePot {
+  amount: number;
+  eligiblePlayerIds: string[];
+}
+
+export interface SidePotResult extends SidePot {
+  winnerPlayerIds: string[];
 }
 
 export interface GameResultWinner {
   playerId: string;
-  evaluation: HandEvaluation;
+  evaluation: HandEvaluation | null;
+  amountWon: number;
 }
 
-export interface GameResultEntry extends GameResultWinner {
+export interface GameResultEntry {
+  playerId: string;
+  evaluation: HandEvaluation | null;
   hand: DeckCard[];
+  amountWon: number;
+  finalStack: number;
+  folded: boolean;
 }
 
 export interface GameResultSummary {
@@ -42,6 +59,13 @@ export interface GameResultSummary {
   winners: GameResultWinner[];
   results: GameResultEntry[];
   finalBoard: DeckCard[];
+  sidePots: SidePotResult[];
+}
+
+export interface PlayerPositionMap {
+  dealer: string | null;
+  smallBlind: string | null;
+  bigBlind: string | null;
 }
 
 export interface RoomSnapshot {
@@ -56,6 +80,11 @@ export interface RoomSnapshot {
   boardRevealCount: number;
   results: GameResultSummary | null;
   createdAt: string;
+  pot: number;
+  sidePots: SidePot[];
+  currentBet: number;
+  currentTurnPlayerId: string | null;
+  positions: PlayerPositionMap;
 }
 
 export interface PlayerRoomState {
@@ -64,6 +93,13 @@ export interface PlayerRoomState {
   hand: DeckCard[];
   board: DeckCard[];
   results: GameResultSummary | null;
+  myStack: number;
+  currentBet: number;
+  toCall: number;
+  positions: PlayerPositionMap;
+  availableActions: PlayerActionType[];
+  pot: number;
+  sidePots: SidePot[];
 }
 
 export interface CreateRoomResponse {
@@ -88,7 +124,7 @@ interface PlayerUpdateEvent {
   room: RoomSnapshot;
 }
 
-interface GameStartedEvent extends PlayerRoomState {
+interface GameStartedEvent {
   type: "game_started";
   roomId: string;
   phase: RoomPhase;
@@ -96,8 +132,17 @@ interface GameStartedEvent extends PlayerRoomState {
   playerCount: number;
 }
 
-interface BoardRevealedEvent {
-  type: "board_revealed";
+interface ActionAppliedEvent {
+  type: "action_applied";
+  actorPlayerId: string;
+  action: PlayerActionType;
+  amount: number | null;
+  phase: RoomPhase;
+  room: RoomSnapshot;
+}
+
+interface PhaseAdvancedEvent {
+  type: "phase_advanced";
   phase: RoomPhase;
   board: DeckCard[];
   revealedCount: number;
@@ -111,7 +156,6 @@ interface GameResultEvent {
   winners: GameResultWinner[];
   results: GameResultEntry[];
   room: RoomSnapshot;
-  hand: DeckCard[];
 }
 
 interface ErrorEventPayload {
@@ -127,7 +171,8 @@ export type ServerEvent =
   | RoomStateEvent
   | PlayerUpdateEvent
   | GameStartedEvent
-  | BoardRevealedEvent
+  | ActionAppliedEvent
+  | PhaseAdvancedEvent
   | GameResultEvent
   | ErrorEventPayload
   | PongEvent;
@@ -143,6 +188,11 @@ export type ClientEvent =
     }
   | {
       type: "start_game";
+    }
+  | {
+      type: "player_action";
+      action: PlayerActionType;
+      amount?: number;
     }
   | {
       type: "ping";

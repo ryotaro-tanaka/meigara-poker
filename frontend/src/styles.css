@@ -140,6 +140,10 @@ button {
   gap: 16px;
 }
 
+.stack.tight {
+  gap: 6px;
+}
+
 .panel {
   padding: 20px;
 }
@@ -182,6 +186,13 @@ button {
 .secondary-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.button-grid,
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
 }
 
 .card-row {

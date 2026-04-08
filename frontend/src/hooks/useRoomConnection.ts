@@ -73,7 +73,7 @@ export function useRoomConnection({ state, dispatch }: UseRoomConnectionOptions)
     socket.addEventListener("message", (message) => {
       const event = JSON.parse(String(message.data)) as ServerEvent;
 
-      if (state.route.kind === "room" && "selfPlayerId" in event && event.selfPlayerId) {
+      if (state.route.kind === "room" && event.type === "room_state" && event.selfPlayerId) {
         setStoredPlayerId(state.route.roomId, event.selfPlayerId);
       }
 
