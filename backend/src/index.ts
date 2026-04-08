@@ -3,7 +3,6 @@ import { buildDeck, type DeckCard } from "./lib/deck";
 interface PlayerState {
   playerId: string;
   name: string;
-  isHost: boolean;
   joinedAt: string;
   connected: boolean;
 }
@@ -13,7 +12,6 @@ type RoomPhase = "waiting" | "started";
 interface RoomState {
   roomId: string;
   roomName: string;
-  hostId: string;
   players: PlayerState[];
   phase: RoomPhase;
   deck: DeckCard[];
@@ -80,7 +78,6 @@ function normalizePlayer(state: RoomState, playerId: string, name = ""): { state
   const player: PlayerState = {
     playerId,
     name,
-    isHost: state.hostId === playerId,
     joinedAt: new Date().toISOString(),
     connected: true,
   };
@@ -146,14 +143,14 @@ async function handleRoomCreate(request: Request, env: Env): Promise<Response> {
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const roomId = makeRoomId();
-    const hostId = crypto.randomUUID();
+    const playerId = crypto.randomUUID();
     const stub = getRoomStub(env, roomId);
     const initResponse = await stub.fetch("https://room/init", {
       method: "POST",
       headers: {
         "content-type": "application/json",
       },
-      body: JSON.stringify({ roomId, roomName, hostId }),
+      body: JSON.stringify({ roomId, roomName, playerId }),
     });
 
     if (initResponse.status === 409) {
@@ -169,7 +166,7 @@ async function handleRoomCreate(request: Request, env: Env): Promise<Response> {
       ok: true,
       roomId,
       roomName,
-      hostId,
+      playerId,
       roomUrl: `${new URL(request.url).origin}/rooms/${roomId}`,
     });
   }
@@ -322,10 +319,10 @@ export class RoomDurableObject {
     const url = new URL(request.url);
 
     if (request.method === "POST" && url.pathname === "/init") {
-      const body = (await readJson<{ roomId: string; roomName: string; hostId: string }>(request)) ?? null;
+      const body = (await readJson<{ roomId: string; roomName: string; playerId: string }>(request)) ?? null;
 
-      if (!body?.roomId || !body.roomName || !body.hostId) {
-        return errorJson("roomId, roomName and hostId are required.");
+      if (!body?.roomId || !body.roomName || !body.playerId) {
+        return errorJson("roomId, roomName and playerId are required.");
       }
 
       const existing = await this.loadState();
@@ -336,7 +333,6 @@ export class RoomDurableObject {
       const state: RoomState = {
         roomId: body.roomId,
         roomName: body.roomName,
-        hostId: body.hostId,
         players: [],
         phase: "waiting",
         deck: [],
