@@ -1,9 +1,10 @@
 import { buildDeck } from "./lib/deck";
 import {
-  advanceRoomState,
+  applyPlayerAction,
   createPlayerRoomState,
   createRoomSnapshot,
   createStartedRoomState,
+  type PlayerActionType,
   type PlayerState,
   type RoomState,
 } from "./lib/game-progression";
@@ -12,10 +13,35 @@ interface RoomCreateRequest {
   roomName: string;
 }
 
-interface ClientEvent {
-  type: "join_room" | "set_name" | "start_game" | "ping";
+interface ClientEventBase {
+  type: "join_room" | "set_name" | "start_game" | "player_action" | "ping";
+}
+
+interface JoinRoomEvent extends ClientEventBase {
+  type: "join_room";
   name?: string;
 }
+
+interface SetNameEvent extends ClientEventBase {
+  type: "set_name";
+  name?: string;
+}
+
+interface StartGameEvent extends ClientEventBase {
+  type: "start_game";
+}
+
+interface PlayerActionEvent extends ClientEventBase {
+  type: "player_action";
+  action: PlayerActionType;
+  amount?: number;
+}
+
+interface PingEvent extends ClientEventBase {
+  type: "ping";
+}
+
+type ClientEvent = JoinRoomEvent | SetNameEvent | StartGameEvent | PlayerActionEvent | PingEvent;
 
 interface Env {
   DB: D1Database;
@@ -25,7 +51,6 @@ interface Env {
 
 const ROOM_ID_LENGTH = 6;
 const ROOM_ID_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-const PHASE_ADVANCE_DELAY_MS = 1500;
 
 function json(data: unknown, init?: ResponseInit): Response {
   return new Response(JSON.stringify(data, null, 2), {
@@ -51,6 +76,10 @@ function normalizePlayer(state: RoomState, playerId: string, name = ""): { state
 
   if (existing) {
     existing.connected = true;
+    if (name) {
+      existing.name = name;
+    }
+
     return { state, player: existing, created: false };
   }
 
@@ -177,8 +206,6 @@ export class RoomDurableObject {
   private ctx: DurableObjectState;
   private env: Env;
   private sessions = new Map<string, WebSocket>();
-  private progressionTimer: ReturnType<typeof setTimeout> | null = null;
-  private progressionToken = 0;
 
   constructor(ctx: DurableObjectState, env: Env) {
     this.ctx = ctx;
@@ -205,14 +232,20 @@ export class RoomDurableObject {
     }
   }
 
-  private clearProgressionTimer(): void {
-    if (this.progressionTimer) {
-      clearTimeout(this.progressionTimer);
-      this.progressionTimer = null;
+  private sendRoomState(state: RoomState, playerId: string): void {
+    this.sendToPlayer(playerId, {
+      type: "room_state",
+      ...createPlayerRoomState(state, playerId),
+    });
+  }
+
+  private broadcastRoomState(state: RoomState): void {
+    for (const player of state.players) {
+      this.sendRoomState(state, player.playerId);
     }
   }
 
-  private broadcastRoomSnapshot(eventType: "player_joined" | "player_updated", state: RoomState): void {
+  private broadcastSharedSnapshot(eventType: "player_joined" | "player_updated", state: RoomState): void {
     const room = createRoomSnapshot(state);
 
     for (const socket of this.sessions.values()) {
@@ -223,38 +256,51 @@ export class RoomDurableObject {
     }
   }
 
-  private sendRoomState(state: RoomState, playerId: string): void {
-    this.sendToPlayer(playerId, {
-      type: "room_state",
-      ...createPlayerRoomState(state, playerId),
-    });
-  }
-
   private broadcastGameStarted(state: RoomState): void {
-    for (const [playerId, socket] of this.sessions.entries()) {
-      this.send(socket, {
+    for (const player of state.players) {
+      this.sendToPlayer(player.playerId, {
         type: "game_started",
         roomId: state.roomId,
         phase: state.phase,
         selectedIndustries: state.selectedIndustries,
         playerCount: state.players.length,
-        ...createPlayerRoomState(state, playerId),
       });
     }
+
+    this.broadcastRoomState(state);
   }
 
-  private broadcastBoardRevealed(state: RoomState): void {
+  private broadcastActionApplied(state: RoomState, actorPlayerId: string, action: PlayerActionType, amount?: number): void {
     const room = createRoomSnapshot(state);
 
     for (const socket of this.sessions.values()) {
       this.send(socket, {
-        type: "board_revealed",
+        type: "action_applied",
+        actorPlayerId,
+        action,
+        amount: amount ?? null,
         phase: state.phase,
-        board: room.board,
-        revealedCount: state.boardRevealCount,
         room,
       });
     }
+
+    this.broadcastRoomState(state);
+  }
+
+  private broadcastPhaseAdvanced(state: RoomState): void {
+    const room = createRoomSnapshot(state);
+
+    for (const socket of this.sessions.values()) {
+      this.send(socket, {
+        type: "phase_advanced",
+        phase: state.phase,
+        board: room.board,
+        revealedCount: room.boardRevealCount,
+        room,
+      });
+    }
+
+    this.broadcastRoomState(state);
   }
 
   private broadcastGameResult(state: RoomState): void {
@@ -262,49 +308,18 @@ export class RoomDurableObject {
     const winners = state.results?.winners ?? [];
     const results = state.results?.results ?? [];
 
-    for (const [playerId, socket] of this.sessions.entries()) {
-      this.send(socket, {
+    for (const player of state.players) {
+      this.sendToPlayer(player.playerId, {
         type: "game_result",
         phase: state.phase,
         board: room.board,
         winners,
         results,
         room,
-        hand: state.handsByPlayer[playerId] ?? [],
       });
     }
-  }
 
-  private scheduleNextPhase(token: number): void {
-    this.clearProgressionTimer();
-    this.progressionTimer = setTimeout(() => {
-      void this.advancePhase(token);
-    }, PHASE_ADVANCE_DELAY_MS);
-  }
-
-  private async advancePhase(token: number): Promise<void> {
-    if (token !== this.progressionToken) {
-      return;
-    }
-
-    const state = await this.loadState();
-
-    if (!state || state.phase === "waiting" || state.phase === "showdown") {
-      this.clearProgressionTimer();
-      return;
-    }
-
-    const nextState = advanceRoomState(state);
-    await this.saveState(nextState);
-
-    if (nextState.phase === "showdown") {
-      this.broadcastGameResult(nextState);
-      this.clearProgressionTimer();
-      return;
-    }
-
-    this.broadcastBoardRevealed(nextState);
-    this.scheduleNextPhase(token);
+    this.broadcastRoomState(state);
   }
 
   private async startGame(state: RoomState): Promise<RoomState> {
@@ -316,10 +331,28 @@ export class RoomDurableObject {
     });
 
     await this.saveState(nextState);
-    this.progressionToken += 1;
     this.broadcastGameStarted(nextState);
-    this.scheduleNextPhase(this.progressionToken);
     return nextState;
+  }
+
+  private async handlePlayerAction(state: RoomState, payload: PlayerActionEvent, playerId: string): Promise<void> {
+    const previousPhase = state.phase;
+    const nextState = applyPlayerAction(state, {
+      playerId,
+      action: payload.action,
+      amount: payload.amount,
+    });
+
+    await this.saveState(nextState);
+    this.broadcastActionApplied(nextState, playerId, payload.action, payload.amount);
+
+    if (nextState.phase !== previousPhase && nextState.phase !== "showdown") {
+      this.broadcastPhaseAdvanced(nextState);
+    }
+
+    if (nextState.phase === "showdown") {
+      this.broadcastGameResult(nextState);
+    }
   }
 
   private async handleClientEvent(playerId: string, payload: ClientEvent): Promise<void> {
@@ -338,7 +371,8 @@ export class RoomDurableObject {
       try {
         const { created } = normalizePlayer(state, playerId, payload.name?.trim() ?? "");
         await this.saveState(state);
-        this.broadcastRoomSnapshot(created ? "player_joined" : "player_updated", state);
+        this.broadcastSharedSnapshot(created ? "player_joined" : "player_updated", state);
+        this.broadcastRoomState(state);
       } catch (error) {
         this.sendToPlayer(playerId, {
           type: "error",
@@ -358,7 +392,8 @@ export class RoomDurableObject {
 
       player.name = payload.name?.trim() ?? "";
       await this.saveState(state);
-      this.broadcastRoomSnapshot("player_updated", state);
+      this.broadcastSharedSnapshot("player_updated", state);
+      this.broadcastRoomState(state);
       return;
     }
 
@@ -369,6 +404,19 @@ export class RoomDurableObject {
         this.sendToPlayer(playerId, {
           type: "error",
           message: error instanceof Error ? error.message : "Failed to start game.",
+        });
+      }
+
+      return;
+    }
+
+    if (payload.type === "player_action") {
+      try {
+        await this.handlePlayerAction(state, payload, playerId);
+      } catch (error) {
+        this.sendToPlayer(playerId, {
+          type: "error",
+          message: error instanceof Error ? error.message : "Failed to apply action.",
         });
       }
     }
@@ -402,6 +450,22 @@ export class RoomDurableObject {
         boardRevealCount: 0,
         results: null,
         createdAt: new Date().toISOString(),
+        stacks: {},
+        contributions: {},
+        currentBets: {},
+        pot: 0,
+        sidePots: [],
+        foldedPlayerIds: [],
+        allInPlayerIds: [],
+        dealerIndex: null,
+        smallBlindIndex: null,
+        bigBlindIndex: null,
+        currentTurnPlayerId: null,
+        currentBet: 0,
+        minRaise: 2,
+        lastAggressorPlayerId: null,
+        availableActions: {},
+        actionState: { playersToAct: [] },
       };
 
       await this.saveState(state);
@@ -435,6 +499,9 @@ export class RoomDurableObject {
           selectedIndustries: nextState.selectedIndustries,
           playerCount: nextState.players.length,
           boardRevealCount: nextState.boardRevealCount,
+          positions: createRoomSnapshot(nextState).positions,
+          pot: nextState.pot,
+          currentBet: nextState.currentBet,
         });
       } catch (error) {
         return errorJson(error instanceof Error ? error.message : "Failed to start game.", 400);
@@ -467,7 +534,7 @@ export class RoomDurableObject {
         await this.saveState(nextState);
 
         if (normalized.created) {
-          this.broadcastRoomSnapshot("player_joined", nextState);
+          this.broadcastSharedSnapshot("player_joined", nextState);
         }
       } catch (error) {
         this.sessions.delete(playerId);
@@ -493,7 +560,8 @@ export class RoomDurableObject {
           if (player) {
             player.connected = false;
             await this.saveState(current);
-            this.broadcastRoomSnapshot("player_updated", current);
+            this.broadcastSharedSnapshot("player_updated", current);
+            this.broadcastRoomState(current);
           }
         })();
       });
