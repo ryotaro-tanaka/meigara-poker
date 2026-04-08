@@ -1,58 +1,55 @@
 # 開発メモ
 
 ## ゲームルール
-[game_rule.md](docs/game_rule.md)
+[game_rule.md](game_rule.md)
 
 ## 決まっていること
 - Cloudflare Workers と D1 Database を使う
 - WebSocket でゲームを進行する
 - 無料で開発する
-- EDINET の企業情報を使って銘柄カードを作成する
-- デッキは 36 枚にする
-- 基本ルールはテキサス・ホールデムをベースにする
-- デッキ内容と偏りは公開情報にする
-- 同じ役はドローにする
+- 元データは `listed_domestic_complete_corpnum_industries_utf8.csv` を使う
+- この CSV は、ゲームに使える業種だけに絞り込み済みとする
+- カードは `name`、`suit`、`number` を持つ
+- `suit` は `提出者業種` を使う
+- `number` は `提出者法人番号` の末尾 `0〜9` を使う
+- デッキは 40 枚にする
+- 同じ役は引き分けにする
 
-## カード仕様
-- カードは企業名・絵柄・数値を持つ
-- 絵柄は「売上」「資産」「安定」「人材」の 4 種にする
-- 数値は 1〜9 を使う
-- 数値は売上由来の先頭数字を使う
+## DB 方針
+今回はシンプルさを優先して、**テーブルは `stocks` のみ**にする。
 
-## EDINET から保存する情報
-- `edinet_code`
-- `company_name`
-- `fiscal_year_end`
-- `revenue`
-- `total_assets`
-- `equity_ratio`
-- `employees`
-
-## 絵柄の決定方法
-- 絵柄は売上・総資産・自己資本比率・従業員数の 4 指標で決める
-- 各企業について 4 指標の順位スコアを作る
-- 最も順位が高い指標をその企業の絵柄にする
-
-## DB 構成
-- D1 の構成は `stocks`、`suits`、`stock_cards_view` の 3 つにする
-- `stocks` は銘柄の元データを保存する永続テーブルにする
-- `suits` は絵柄 4 種を管理する永続テーブルにする
-- `stock_cards_view` はフロントエンドに渡す形に近い VIEW にする
+`cards_view` は不要とする。  
+理由は、カードに必要な情報が `stocks` にそのまま入るため。
 
 ## stocks テーブル
-- `edinet_code` をプライマリキーにする
-- `company_name`、`fiscal_year_end`、`revenue`、`total_assets`、`equity_ratio`、`employees` を持つ
+保存するカラムは次の5つ。
 
-## suits テーブル
-- `suit_id` をプライマリキーにする
-- `name` に「売上」「資産」「安定」「人材」を持つ
+- `edinet_code`
+- `name`
+- `industry`
+- `corporate_number`
+- `corporate_number_last_digit`
 
-## stock_cards_view
-- `edinet_code` を `stocks` に対する外部キーとして扱う
-- `suit_id` を `suits` に対する外部キーとして扱う
-- `number` は `revenue` の先頭数字を使う
+## カード項目との対応
+- `name` → カードの会社名
+- `industry` → カードの `suit`
+- `corporate_number_last_digit` → カードの `number`
 
-## 初期実装方針
-- EDINET から企業データを一度取得して D1 に保存する
-- 初期保存項目は 7 項目にする
-- ゲームごとに DB から候補企業を取得して 36 枚デッキを構成する
+## デッキ生成
+バックエンドでは、ゲーム開始時に次の流れでデッキを作る。
+
+1. `stocks` から業種をランダムに4つ選ぶ
+2. 各業種について、`corporate_number_last_digit` が `0〜9` になるように1枚ずつ選ぶ
+3. 4業種 × 10枚で40枚デッキを作る
+4. 生成したデッキをゲーム用に使う
+
+## 補足
+- 同じ業種・同じ数字の候補が複数ある場合は、その中からランダムに1枚選ぶ
+- 会社名や業種の中身は毎回ランダムに変わるが、ゲーム上は `suit` と `number` だけが影響する
+- そのため、デッキ内容を別テーブルで固定保存しなくても最初はよい
+
+## 現時点の結論
+- `stocks` テーブルだけで始める
+- `corporate_number_last_digit` は保存する
+- `cards_view` は作らない
+- デッキは毎回バックエンドで直接生成する
