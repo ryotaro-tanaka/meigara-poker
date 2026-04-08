@@ -52,6 +52,24 @@ interface Env {
 const ROOM_ID_LENGTH = 6;
 const ROOM_ID_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
+type LogLevel = "info" | "warn" | "error";
+
+interface RoomLogContext {
+  roomId?: string;
+  playerId?: string;
+  phase?: string;
+  action?: string;
+  amount?: number | null;
+  pot?: number;
+  currentBet?: number;
+  currentTurnPlayerId?: string | null;
+  reason?: string;
+  transition?: string;
+  winners?: string[];
+  payouts?: Array<{ playerId: string; amountWon: number }>;
+  sidePots?: Array<{ amount: number; winnerPlayerIds?: string[] }>;
+}
+
 function json(data: unknown, init?: ResponseInit): Response {
   return new Response(JSON.stringify(data, null, 2), {
     headers: {
@@ -69,6 +87,24 @@ function errorJson(message: string, status = 400): Response {
     },
     { status },
   );
+}
+
+function toLogContext(state?: RoomState | null, extra?: RoomLogContext): RoomLogContext {
+  return {
+    roomId: extra?.roomId ?? state?.roomId,
+    playerId: extra?.playerId,
+    phase: extra?.phase ?? state?.phase,
+    action: extra?.action,
+    amount: extra?.amount,
+    pot: extra?.pot ?? state?.pot,
+    currentBet: extra?.currentBet ?? state?.currentBet,
+    currentTurnPlayerId: extra?.currentTurnPlayerId ?? state?.currentTurnPlayerId,
+    reason: extra?.reason,
+    transition: extra?.transition,
+    winners: extra?.winners,
+    payouts: extra?.payouts,
+    sidePots: extra?.sidePots,
+  };
 }
 
 function normalizePlayer(state: RoomState, playerId: string, name = ""): { state: RoomState; player: PlayerState; created: boolean } {
@@ -220,6 +256,30 @@ export class RoomDurableObject {
     await this.ctx.storage.put("roomState", state);
   }
 
+  private log(level: LogLevel, event: string, context?: RoomLogContext): void {
+    const payload = {
+      scope: "room",
+      event,
+      level,
+      timestamp: new Date().toISOString(),
+      ...context,
+    };
+
+    const line = JSON.stringify(payload);
+
+    if (level === "error") {
+      console.error(line);
+      return;
+    }
+
+    if (level === "warn") {
+      console.warn(line);
+      return;
+    }
+
+    console.log(line);
+  }
+
   private send(socket: WebSocket, payload: unknown): void {
     socket.send(JSON.stringify(payload));
   }
@@ -331,11 +391,21 @@ export class RoomDurableObject {
     });
 
     await this.saveState(nextState);
+    this.log("info", "game_started", {
+      ...toLogContext(nextState),
+      sidePots: nextState.sidePots.map((sidePot) => ({ amount: sidePot.amount })),
+    });
     this.broadcastGameStarted(nextState);
     return nextState;
   }
 
   private async handlePlayerAction(state: RoomState, payload: PlayerActionEvent, playerId: string): Promise<void> {
+    this.log("info", "player_action_received", toLogContext(state, {
+      playerId,
+      action: payload.action,
+      amount: payload.amount ?? null,
+    }));
+
     const previousPhase = state.phase;
     const nextState = applyPlayerAction(state, {
       playerId,
@@ -344,13 +414,35 @@ export class RoomDurableObject {
     });
 
     await this.saveState(nextState);
+    this.log("info", "player_action_applied", toLogContext(nextState, {
+      playerId,
+      action: payload.action,
+      amount: payload.amount ?? null,
+    }));
     this.broadcastActionApplied(nextState, playerId, payload.action, payload.amount);
 
     if (nextState.phase !== previousPhase && nextState.phase !== "showdown") {
+      this.log("info", "phase_advanced", toLogContext(nextState, {
+        transition: `${previousPhase} -> ${nextState.phase}`,
+      }));
       this.broadcastPhaseAdvanced(nextState);
     }
 
     if (nextState.phase === "showdown") {
+      this.log("info", "hand_finished", toLogContext(nextState, {
+        transition: `${previousPhase} -> showdown`,
+        winners: nextState.results?.winners.map((winner) => winner.playerId) ?? [],
+        payouts:
+          nextState.results?.results.map((result) => ({
+            playerId: result.playerId,
+            amountWon: result.amountWon,
+          })) ?? [],
+        sidePots:
+          nextState.results?.sidePots.map((sidePot) => ({
+            amount: sidePot.amount,
+            winnerPlayerIds: sidePot.winnerPlayerIds,
+          })) ?? [],
+      }));
       this.broadcastGameResult(nextState);
     }
   }
@@ -371,9 +463,14 @@ export class RoomDurableObject {
       try {
         const { created } = normalizePlayer(state, playerId, payload.name?.trim() ?? "");
         await this.saveState(state);
+        this.log("info", created ? "player_joined" : "player_updated", toLogContext(state, { playerId }));
         this.broadcastSharedSnapshot(created ? "player_joined" : "player_updated", state);
         this.broadcastRoomState(state);
       } catch (error) {
+        this.log("warn", "player_join_rejected", toLogContext(state, {
+          playerId,
+          reason: error instanceof Error ? error.message : "Failed to join the room.",
+        }));
         this.sendToPlayer(playerId, {
           type: "error",
           message: error instanceof Error ? error.message : "Failed to join the room.",
@@ -392,6 +489,7 @@ export class RoomDurableObject {
 
       player.name = payload.name?.trim() ?? "";
       await this.saveState(state);
+      this.log("info", "player_updated", toLogContext(state, { playerId }));
       this.broadcastSharedSnapshot("player_updated", state);
       this.broadcastRoomState(state);
       return;
@@ -401,6 +499,10 @@ export class RoomDurableObject {
       try {
         await this.startGame(state);
       } catch (error) {
+        this.log("warn", "game_start_rejected", toLogContext(state, {
+          playerId,
+          reason: error instanceof Error ? error.message : "Failed to start game.",
+        }));
         this.sendToPlayer(playerId, {
           type: "error",
           message: error instanceof Error ? error.message : "Failed to start game.",
@@ -414,6 +516,12 @@ export class RoomDurableObject {
       try {
         await this.handlePlayerAction(state, payload, playerId);
       } catch (error) {
+        this.log("warn", "player_action_rejected", toLogContext(state, {
+          playerId,
+          action: payload.action,
+          amount: payload.amount ?? null,
+          reason: error instanceof Error ? error.message : "Failed to apply action.",
+        }));
         this.sendToPlayer(playerId, {
           type: "error",
           message: error instanceof Error ? error.message : "Failed to apply action.",
@@ -435,6 +543,11 @@ export class RoomDurableObject {
       const existing = await this.loadState();
 
       if (existing) {
+        this.log("warn", "room_init_rejected", {
+          roomId: body.roomId,
+          playerId: body.playerId,
+          reason: "Room already exists.",
+        });
         return errorJson("Room already exists.", 409);
       }
 
@@ -469,6 +582,11 @@ export class RoomDurableObject {
       };
 
       await this.saveState(state);
+      this.log("info", "room_created", {
+        roomId: state.roomId,
+        playerId: body.playerId,
+        phase: state.phase,
+      });
       return json({
         ok: true,
         roomId: state.roomId,
@@ -518,6 +636,10 @@ export class RoomDurableObject {
       const existingPlayer = state.players.find((player) => player.playerId === playerId);
 
       if (!existingPlayer && state.phase !== "waiting") {
+        this.log("warn", "player_join_rejected", toLogContext(state, {
+          playerId,
+          reason: "Cannot join after the game has started.",
+        }));
         return errorJson("Cannot join after the game has started.", 400);
       }
 
@@ -534,10 +656,15 @@ export class RoomDurableObject {
         await this.saveState(nextState);
 
         if (normalized.created) {
+          this.log("info", "player_joined", toLogContext(nextState, { playerId }));
           this.broadcastSharedSnapshot("player_joined", nextState);
         }
       } catch (error) {
         this.sessions.delete(playerId);
+        this.log("warn", "player_join_rejected", toLogContext(state, {
+          playerId,
+          reason: error instanceof Error ? error.message : "Failed to join room.",
+        }));
         server.close(1011, error instanceof Error ? error.message : "Failed to join room.");
         return errorJson(error instanceof Error ? error.message : "Failed to join room.", 400);
       }
@@ -560,6 +687,7 @@ export class RoomDurableObject {
           if (player) {
             player.connected = false;
             await this.saveState(current);
+            this.log("info", "player_disconnected", toLogContext(current, { playerId }));
             this.broadcastSharedSnapshot("player_updated", current);
             this.broadcastRoomState(current);
           }
