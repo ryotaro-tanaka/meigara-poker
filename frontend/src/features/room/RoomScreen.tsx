@@ -4,6 +4,7 @@ import { RoomHeader } from "../../components/RoomHeader";
 import { SharePanel } from "../../components/SharePanel";
 import { StatusBadge } from "../../components/StatusBadge";
 import { GameScreen } from "../game/GameScreen";
+import { getRoomDescription, getWaitingRuleItems } from "../../lib/game-ui";
 import type { AppState } from "../../state/app-state";
 import type { PlayerActionType } from "../../lib/types";
 
@@ -26,11 +27,7 @@ export function RoomScreen({ state, shareUrl, onNameSubmit, onNameChange, onStar
       <RoomHeader
         roomId={state.roomId}
         roomName={state.room?.roomName ?? "ルームを読み込み中..."}
-        description={
-          isWaiting
-            ? "名前を決めて参加者を待ちます。2 人以上そろうとゲームを開始できます。"
-            : "自分の手番ではアクションを選び、ベット進行に合わせて pot と場札の変化を確認します。"
-        }
+        description={getRoomDescription(state.room?.phase ?? "waiting")}
         status={state.connectionStatus}
         phase={state.room?.phase ?? null}
         playerCount={state.room?.playerCount ?? 0}
@@ -63,9 +60,9 @@ export function RoomScreen({ state, shareUrl, onNameSubmit, onNameChange, onStar
                 <h2>ルール</h2>
               </div>
               <ul className="guide-list">
-                <li>手札 2 枚と場札 5 枚で最強の 5 枚役を作ります。</li>
-                <li>SB / BB を置いてから preflop, flop, turn, river の順に進みます。</li>
-                <li>同役でもキッカーまで比較し、完全同値だけ引き分けです。</li>
+                {getWaitingRuleItems().map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
               </ul>
             </section>
           </aside>

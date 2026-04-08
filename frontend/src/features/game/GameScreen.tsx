@@ -4,24 +4,13 @@ import { CardRow } from "../../components/CardRow";
 import { InfoPanel } from "../../components/InfoPanel";
 import { PhaseTimeline } from "../../components/PhaseTimeline";
 import { ResultSummary } from "../../components/ResultSummary";
+import { getCurrentTurnLabel } from "../../lib/game-ui";
 import type { PlayerActionType } from "../../lib/types";
 import type { AppState } from "../../state/app-state";
 
 interface GameScreenProps {
   state: AppState;
   onPlayerAction: (action: PlayerActionType, amount?: number) => void;
-}
-
-function resolveCurrentTurnLabel(state: AppState): string {
-  if (!state.currentTurnPlayerId) {
-    return "進行待ち";
-  }
-
-  if (state.currentTurnPlayerId === state.playerId) {
-    return "あなた";
-  }
-
-  return state.room?.players.find((player) => player.playerId === state.currentTurnPlayerId)?.name || state.currentTurnPlayerId;
 }
 
 export function GameScreen({ state, onPlayerAction }: GameScreenProps) {
@@ -36,7 +25,7 @@ export function GameScreen({ state, onPlayerAction }: GameScreenProps) {
           <ActionPanel
             availableActions={state.availableActions}
             toCall={state.toCall}
-            currentTurnLabel={resolveCurrentTurnLabel(state)}
+            currentTurnLabel={getCurrentTurnLabel(state)}
             amountValue={amountValue}
             onAmountChange={setAmountValue}
             onAction={onPlayerAction}

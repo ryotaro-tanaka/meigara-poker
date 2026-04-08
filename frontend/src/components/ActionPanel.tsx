@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { getActionLabel } from "../lib/game-ui";
 import type { PlayerActionType } from "../lib/types";
 
 interface ActionPanelProps {
@@ -8,23 +9,6 @@ interface ActionPanelProps {
   amountValue: string;
   onAmountChange: (value: string) => void;
   onAction: (action: PlayerActionType, amount?: number) => void;
-}
-
-function labelForAction(action: PlayerActionType, toCall: number): string {
-  switch (action) {
-    case "fold":
-      return "fold";
-    case "check":
-      return "check";
-    case "call":
-      return `call (${toCall})`;
-    case "bet":
-      return "bet";
-    case "raise":
-      return "raise";
-    case "all-in":
-      return "all-in";
-  }
 }
 
 export function ActionPanel({ availableActions, toCall, currentTurnLabel, amountValue, onAmountChange, onAction }: ActionPanelProps) {
@@ -56,7 +40,7 @@ export function ActionPanel({ availableActions, toCall, currentTurnLabel, amount
               disabled={!enabled}
               onClick={() => onAction(action, action === "bet" || action === "raise" ? amount : undefined)}
             >
-              {labelForAction(action, toCall)}
+              {getActionLabel(action, toCall)}
             </button>
           );
         })}

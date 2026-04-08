@@ -1,3 +1,4 @@
+import { getPositionLines, resolvePlayerName } from "../lib/game-ui";
 import type { PlayerPositionMap, PlayerState, RoomPhase, SidePot } from "../lib/types";
 
 interface InfoPanelProps {
@@ -14,18 +15,6 @@ interface InfoPanelProps {
   players: PlayerState[];
   selfPlayerId: string | null;
   lastActionMessage: string | null;
-}
-
-function resolvePlayerName(players: PlayerState[], playerId: string | null, selfPlayerId: string | null): string {
-  if (!playerId) {
-    return "未設定";
-  }
-
-  if (playerId === selfPlayerId) {
-    return "あなた";
-  }
-
-  return players.find((player) => player.playerId === playerId)?.name || playerId;
 }
 
 export function InfoPanel({
@@ -58,9 +47,11 @@ export function InfoPanel({
         <p className="meta-text">現在の手番: {resolvePlayerName(players, currentTurnPlayerId, selfPlayerId)}</p>
       </div>
       <div className="stack tight">
-        <p className="meta-text">Dealer: {resolvePlayerName(players, positions.dealer, selfPlayerId)}</p>
-        <p className="meta-text">SB: {resolvePlayerName(players, positions.smallBlind, selfPlayerId)}</p>
-        <p className="meta-text">BB: {resolvePlayerName(players, positions.bigBlind, selfPlayerId)}</p>
+        {getPositionLines(players, positions, selfPlayerId).map((line) => (
+          <p key={line.label} className="meta-text">
+            {line.label}: {line.value}
+          </p>
+        ))}
       </div>
       <p className="meta-text">使用業種: {selectedIndustries.join(" / ") || "ゲーム開始後に表示されます。"}</p>
       <p className="meta-text">

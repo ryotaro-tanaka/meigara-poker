@@ -1,12 +1,9 @@
+import { resolvePlayerName } from "../lib/game-ui";
 import type { GameResultSummary, PlayerState } from "../lib/types";
 
 interface ResultSummaryProps {
   results: GameResultSummary | null;
   players: PlayerState[];
-}
-
-function resolvePlayerName(players: PlayerState[], playerId: string): string {
-  return players.find((player) => player.playerId === playerId)?.name || playerId;
 }
 
 export function ResultSummary({ results, players }: ResultSummaryProps) {

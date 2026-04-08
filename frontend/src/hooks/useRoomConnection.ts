@@ -10,6 +10,37 @@ interface UseRoomConnectionOptions {
   dispatch: Dispatch<AppAction>;
 }
 
+function restorePlayerId(state: AppState, dispatch: Dispatch<AppAction>): string | null {
+  if (state.route.kind !== "room") {
+    return null;
+  }
+
+  const restoredPlayerId = state.playerId ?? getStoredPlayerId(state.route.roomId) ?? crypto.randomUUID();
+
+  if (restoredPlayerId !== state.playerId) {
+    dispatch({
+      type: "player_restored",
+      roomId: state.route.roomId,
+      playerId: restoredPlayerId,
+      playerName: state.playerName,
+    });
+  }
+
+  return restoredPlayerId;
+}
+
+function persistPlayerId(route: AppState["route"], event: ServerEvent): void {
+  if (route.kind === "room" && event.type === "room_state" && event.selfPlayerId) {
+    setStoredPlayerId(route.roomId, event.selfPlayerId);
+  }
+}
+
+function startPing(socket: WebSocket): number {
+  return window.setInterval(() => {
+    socket.send(JSON.stringify({ type: "ping" } satisfies ClientEvent));
+  }, 15000);
+}
+
 export function useRoomConnection({ state, dispatch }: UseRoomConnectionOptions): {
   sendEvent: (event: ClientEvent) => void;
 } {
@@ -21,21 +52,10 @@ export function useRoomConnection({ state, dispatch }: UseRoomConnectionOptions)
       return;
     }
 
-    const roomId = state.route.roomId;
-    const restoredPlayerId = state.playerId ?? getStoredPlayerId(roomId) ?? crypto.randomUUID();
-
-    if (restoredPlayerId !== state.playerId) {
-      dispatch({
-        type: "player_restored",
-        roomId,
-        playerId: restoredPlayerId,
-        playerName: state.playerName,
-      });
-    }
-
+    restorePlayerId(state, dispatch);
     dispatch({ type: "snapshot_requested" });
 
-    void fetchRoomSnapshot(roomId)
+    void fetchRoomSnapshot(state.route.roomId)
       .then((payload) => {
         dispatch({ type: "snapshot_loaded", room: payload.room });
       })
@@ -65,18 +85,12 @@ export function useRoomConnection({ state, dispatch }: UseRoomConnectionOptions)
         } satisfies ClientEvent),
       );
 
-      pingTimerRef.current = window.setInterval(() => {
-        socket.send(JSON.stringify({ type: "ping" } satisfies ClientEvent));
-      }, 15000);
+      pingTimerRef.current = startPing(socket);
     });
 
     socket.addEventListener("message", (message) => {
       const event = JSON.parse(String(message.data)) as ServerEvent;
-
-      if (state.route.kind === "room" && event.type === "room_state" && event.selfPlayerId) {
-        setStoredPlayerId(state.route.roomId, event.selfPlayerId);
-      }
-
+      persistPlayerId(state.route, event);
       dispatch({ type: "server_event_received", event });
     });
 
