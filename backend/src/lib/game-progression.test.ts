@@ -166,8 +166,14 @@ describe("game progression", () => {
 
     state.stacks["player-2"] = 3;
     state = applyPlayerAction(state, { playerId: "player-2", action: "all-in" });
+    const snapshot = createRoomSnapshot(state);
     expect(state.sidePots).toEqual([
       { amount: 6, eligiblePlayerIds: ["player-1", "player-2", "player-3"] },
+      { amount: 4, eligiblePlayerIds: ["player-1", "player-2"] },
+      { amount: 2, eligiblePlayerIds: ["player-1"] },
+    ]);
+    expect(snapshot.mainPot).toEqual({ amount: 6, eligiblePlayerIds: ["player-1", "player-2", "player-3"] });
+    expect(snapshot.sidePots).toEqual([
       { amount: 4, eligiblePlayerIds: ["player-1", "player-2"] },
       { amount: 2, eligiblePlayerIds: ["player-1"] },
     ]);
@@ -243,8 +249,12 @@ describe("game progression", () => {
     const showdown = applyPlayerAction(riverState, { playerId: "player-3", action: "check" });
 
     expect(showdown.phase).toBe("showdown");
+    expect(showdown.results?.mainPot).toEqual({
+      amount: 12,
+      eligiblePlayerIds: ["player-1", "player-2", "player-3"],
+      winnerPlayerIds: ["player-1"],
+    });
     expect(showdown.results?.sidePots).toEqual([
-      { amount: 12, eligiblePlayerIds: ["player-1", "player-2", "player-3"], winnerPlayerIds: ["player-1"] },
       { amount: 4, eligiblePlayerIds: ["player-1", "player-3"], winnerPlayerIds: ["player-1"] },
     ]);
     expect(showdown.results?.results.find((entry) => entry.playerId === "player-1")?.amountWon).toBe(16);
@@ -262,6 +272,8 @@ describe("game progression", () => {
     expect(snapshot.phase).toBe("flop");
     expect(snapshot.board).toHaveLength(3);
     expect(snapshot.pot).toBe(6);
+    expect(snapshot.mainPot).toEqual({ amount: 6, eligiblePlayerIds: ["player-1", "player-2", "player-3"] });
+    expect(snapshot.sidePots).toEqual([]);
     expect(snapshot.currentTurnPlayerId).toBe("player-2");
   });
 

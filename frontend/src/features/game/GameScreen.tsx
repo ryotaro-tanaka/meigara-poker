@@ -38,6 +38,7 @@ export function GameScreen({ state, onPlayerAction }: GameScreenProps) {
             revealedCount={state.room?.boardRevealCount ?? 0}
             selectedIndustries={state.selectedIndustries}
             pot={state.pot}
+            mainPot={state.mainPot}
             sidePots={state.sidePots}
             myStack={state.myStack}
             currentBet={state.currentBet}

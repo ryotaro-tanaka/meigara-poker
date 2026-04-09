@@ -47,11 +47,16 @@ export interface SidePotResult extends SidePot {
   winnerPlayerIds: string[];
 }
 
+export interface MainPot extends SidePot {}
+
+export interface MainPotResult extends SidePotResult {}
+
 export interface GameResultSummary {
   isDraw: boolean;
   winners: GameResultWinner[];
   results: GameResultEntry[];
   finalBoard: DeckCard[];
+  mainPot: MainPotResult | null;
   sidePots: SidePotResult[];
 }
 
@@ -108,6 +113,7 @@ export interface RoomSnapshot {
   results: GameResultSummary | null;
   createdAt: string;
   pot: number;
+  mainPot: MainPot | null;
   sidePots: SidePot[];
   currentBet: number;
   currentTurnPlayerId: string | null;
@@ -126,6 +132,7 @@ export interface PlayerRoomState {
   positions: PlayerPositionMap;
   availableActions: PlayerActionType[];
   pot: number;
+  mainPot: MainPot | null;
   sidePots: SidePot[];
 }
 
@@ -163,6 +170,13 @@ function cloneState(state: RoomState): RoomState {
           winners: state.results.winners.map((winner) => ({ ...winner })),
           results: state.results.results.map((result) => ({ ...result, hand: [...result.hand] })),
           finalBoard: [...state.results.finalBoard],
+          mainPot: state.results.mainPot
+            ? {
+                ...state.results.mainPot,
+                eligiblePlayerIds: [...state.results.mainPot.eligiblePlayerIds],
+                winnerPlayerIds: [...state.results.mainPot.winnerPlayerIds],
+              }
+            : null,
           sidePots: state.results.sidePots.map((pot) => ({
             ...pot,
             eligiblePlayerIds: [...pot.eligiblePlayerIds],
@@ -336,6 +350,15 @@ function recomputeSidePots(contributions: Record<string, number>, foldedPlayerId
   return sidePots;
 }
 
+function splitMainAndSidePots<T extends SidePot>(pots: T[]): { mainPot: T | null; sidePots: T[] } {
+  const [mainPot, ...sidePots] = pots;
+
+  return {
+    mainPot: mainPot ?? null,
+    sidePots,
+  };
+}
+
 function commitChips(state: RoomState, playerId: string, amount: number): number {
   const stack = state.stacks[playerId] ?? 0;
   const committed = Math.min(stack, amount);
@@ -421,6 +444,12 @@ function settleUncontestedWin(state: RoomState, winnerPlayerId: string): RoomSta
   nextState.boardRevealCount = 5;
   nextState.sidePots = recomputeSidePots(nextState.contributions, nextState.foldedPlayerIds);
   nextState.stacks[winnerPlayerId] = (nextState.stacks[winnerPlayerId] ?? 0) + nextState.pot;
+  const potResults = nextState.sidePots.map((pot) => ({
+    ...pot,
+    winnerPlayerIds: [winnerPlayerId],
+    eligiblePlayerIds: [...pot.eligiblePlayerIds],
+  }));
+  const { mainPot, sidePots } = splitMainAndSidePots(potResults);
 
   nextState.results = {
     isDraw: false,
@@ -440,11 +469,8 @@ function settleUncontestedWin(state: RoomState, winnerPlayerId: string): RoomSta
       folded: nextState.foldedPlayerIds.includes(player.playerId),
     })),
     finalBoard: nextState.board,
-    sidePots: nextState.sidePots.map((pot) => ({
-      ...pot,
-      winnerPlayerIds: [winnerPlayerId],
-      eligiblePlayerIds: [...pot.eligiblePlayerIds],
-    })),
+    mainPot,
+    sidePots,
   };
 
   nextState.pot = 0;
@@ -509,6 +535,7 @@ function settleShowdown(state: RoomState): RoomState {
   const winnerIds = nextState.players
     .map((player) => player.playerId)
     .filter((playerId) => (winnings[playerId] ?? 0) > 0);
+  const { mainPot, sidePots } = splitMainAndSidePots(sidePotResults);
 
   nextState.results = {
     isDraw: winnerIds.length > 1,
@@ -526,7 +553,8 @@ function settleShowdown(state: RoomState): RoomState {
       folded: nextState.foldedPlayerIds.includes(player.playerId),
     })),
     finalBoard: nextState.board,
-    sidePots: sidePotResults,
+    mainPot,
+    sidePots,
   };
 
   nextState.pot = 0;
@@ -594,6 +622,8 @@ function assertPlayerCanAct(state: RoomState, playerId: string): void {
 }
 
 export function createRoomSnapshot(state: RoomState): RoomSnapshot {
+  const { mainPot, sidePots } = splitMainAndSidePots(state.sidePots);
+
   return {
     roomId: state.roomId,
     roomName: state.roomName,
@@ -607,7 +637,8 @@ export function createRoomSnapshot(state: RoomState): RoomSnapshot {
     results: state.results,
     createdAt: state.createdAt,
     pot: state.pot,
-    sidePots: state.sidePots,
+    mainPot,
+    sidePots,
     currentBet: state.currentBet,
     currentTurnPlayerId: state.currentTurnPlayerId,
     positions: getPositions(state),
@@ -615,6 +646,8 @@ export function createRoomSnapshot(state: RoomState): RoomSnapshot {
 }
 
 export function createPlayerRoomState(state: RoomState, playerId: string): PlayerRoomState {
+  const { mainPot, sidePots } = splitMainAndSidePots(state.sidePots);
+
   return {
     room: createRoomSnapshot(state),
     selfPlayerId: playerId,
@@ -627,7 +660,8 @@ export function createPlayerRoomState(state: RoomState, playerId: string): Playe
     positions: getPositions(state),
     availableActions: state.availableActions[playerId] ?? [],
     pot: state.pot,
-    sidePots: state.sidePots,
+    mainPot,
+    sidePots,
   };
 }
 

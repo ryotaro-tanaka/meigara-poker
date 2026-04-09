@@ -43,6 +43,14 @@ export function ResultSummary({ results, players }: ResultSummaryProps) {
       </ul>
       {results.sidePots.length > 0 ? (
         <ul className="result-list">
+          {results.mainPot ? (
+            <li key={`main-${results.mainPot.amount}`}>
+              <strong>main pot</strong>
+              <span>
+                {results.mainPot.amount} / {results.mainPot.winnerPlayerIds.map((playerId) => resolvePlayerName(players, playerId)).join(", ")}
+              </span>
+            </li>
+          ) : null}
           {results.sidePots.map((sidePot, index) => (
             <li key={`${sidePot.amount}-${index}`}>
               <strong>side pot {index + 1}</strong>
@@ -51,6 +59,15 @@ export function ResultSummary({ results, players }: ResultSummaryProps) {
               </span>
             </li>
           ))}
+        </ul>
+      ) : results.mainPot ? (
+        <ul className="result-list">
+          <li>
+            <strong>main pot</strong>
+            <span>
+              {results.mainPot.amount} / {results.mainPot.winnerPlayerIds.map((playerId) => resolvePlayerName(players, playerId)).join(", ")}
+            </span>
+          </li>
         </ul>
       ) : null}
     </section>

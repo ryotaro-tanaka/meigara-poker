@@ -5,6 +5,7 @@ import type {
   CreateRoomResponse,
   DeckCard,
   GameResultSummary,
+  MainPot,
   PlayerActionType,
   PlayerPositionMap,
   RoomSnapshot,
@@ -19,6 +20,7 @@ interface RoomSyncState {
   selectedIndustries: string[];
   results: GameResultSummary | null;
   pot: number;
+  mainPot: MainPot | null;
   sidePots: SidePot[];
   myStack: number;
   currentBet: number;
@@ -72,6 +74,7 @@ function createInitialRoomSyncState(): RoomSyncState {
     selectedIndustries: [],
     results: null,
     pot: 0,
+    mainPot: null,
     sidePots: [],
     myStack: 0,
     currentBet: 0,
@@ -115,6 +118,7 @@ function applyRoomState(
     positions?: PlayerPositionMap;
     availableActions?: PlayerActionType[];
     pot?: number;
+    mainPot?: MainPot | null;
     sidePots?: SidePot[];
   },
 ): AppState {
@@ -127,6 +131,7 @@ function applyRoomState(
     results: options?.results ?? room.results,
     hand: options?.hand ?? state.hand,
     pot: options?.pot ?? room.pot,
+    mainPot: options?.mainPot ?? room.mainPot,
     sidePots: options?.sidePots ?? room.sidePots,
     myStack: options?.myStack ?? state.myStack,
     currentBet: options?.currentBet ?? state.currentBet,
@@ -147,6 +152,7 @@ function resetRoomScopedState(state: AppState, keepRoom: boolean): AppState {
         selectedIndustries: state.selectedIndustries,
         results: state.results,
         pot: state.pot,
+        mainPot: state.mainPot,
         sidePots: state.sidePots,
         myStack: state.myStack,
         currentBet: state.currentBet,
@@ -184,6 +190,7 @@ function applyRoomEvent(state: AppState, event: Extract<ServerEvent, { type: "ro
     positions: event.positions,
     availableActions: event.availableActions,
     pot: event.pot,
+    mainPot: event.mainPot,
     sidePots: event.sidePots,
   });
 }
@@ -246,6 +253,7 @@ function applyServerEvent(state: AppState, event: ServerEvent): AppState {
           winners: event.winners,
           results: event.results,
           finalBoard: event.board,
+          mainPot: event.room.results?.mainPot ?? null,
           sidePots: event.room.results?.sidePots ?? [],
         },
       }),

@@ -61,6 +61,7 @@ interface RoomLogContext {
   action?: string;
   amount?: number | null;
   pot?: number;
+  mainPot?: { amount: number; winnerPlayerIds?: string[] } | null;
   currentBet?: number;
   currentTurnPlayerId?: string | null;
   reason?: string;
@@ -97,6 +98,7 @@ function toLogContext(state?: RoomState | null, extra?: RoomLogContext): RoomLog
     action: extra?.action,
     amount: extra?.amount,
     pot: extra?.pot ?? state?.pot,
+    mainPot: extra?.mainPot,
     currentBet: extra?.currentBet ?? state?.currentBet,
     currentTurnPlayerId: extra?.currentTurnPlayerId ?? state?.currentTurnPlayerId,
     reason: extra?.reason,
@@ -391,9 +393,11 @@ export class RoomDurableObject {
     });
 
     await this.saveState(nextState);
+    const room = createRoomSnapshot(nextState);
     this.log("info", "game_started", {
       ...toLogContext(nextState),
-      sidePots: nextState.sidePots.map((sidePot) => ({ amount: sidePot.amount })),
+      mainPot: room.mainPot ? { amount: room.mainPot.amount } : null,
+      sidePots: room.sidePots.map((sidePot) => ({ amount: sidePot.amount })),
     });
     this.broadcastGameStarted(nextState);
     return nextState;
@@ -437,6 +441,12 @@ export class RoomDurableObject {
             playerId: result.playerId,
             amountWon: result.amountWon,
           })) ?? [],
+        mainPot: nextState.results?.mainPot
+          ? {
+              amount: nextState.results.mainPot.amount,
+              winnerPlayerIds: nextState.results.mainPot.winnerPlayerIds,
+            }
+          : null,
         sidePots:
           nextState.results?.sidePots.map((sidePot) => ({
             amount: sidePot.amount,

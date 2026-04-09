@@ -51,6 +51,10 @@ export interface SidePotResult extends SidePot {
   winnerPlayerIds: string[];
 }
 
+export interface MainPot extends SidePot {}
+
+export interface MainPotResult extends SidePotResult {}
+
 export interface GameResultWinner {
   playerId: string;
   evaluation: HandEvaluation | null;
@@ -71,6 +75,7 @@ export interface GameResultSummary {
   winners: GameResultWinner[];
   results: GameResultEntry[];
   finalBoard: DeckCard[];
+  mainPot: MainPotResult | null;
   sidePots: SidePotResult[];
 }
 
@@ -93,6 +98,7 @@ export interface RoomSnapshot {
   results: GameResultSummary | null;
   createdAt: string;
   pot: number;
+  mainPot: MainPot | null;
   sidePots: SidePot[];
   currentBet: number;
   currentTurnPlayerId: string | null;
@@ -111,6 +117,7 @@ export interface PlayerRoomState {
   positions: PlayerPositionMap;
   availableActions: PlayerActionType[];
   pot: number;
+  mainPot: MainPot | null;
   sidePots: SidePot[];
 }
 
