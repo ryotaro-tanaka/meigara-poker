@@ -139,6 +139,30 @@ describe("game progression", () => {
     expect(state.boardRevealCount).toBe(5);
   });
 
+  it.fails("keeps the big blind option on preflop after other players only call", () => {
+    let state = createStartedRoomState(makeWaitingState());
+
+    state = applyPlayerAction(state, { playerId: "player-1", action: "call" });
+    state = applyPlayerAction(state, { playerId: "player-2", action: "call" });
+
+    expect(state.phase).toBe("preflop");
+    expect(state.currentTurnPlayerId).toBe("player-3");
+    expect(state.availableActions["player-3"]).toEqual(["fold", "check", "raise", "all-in"]);
+  });
+
+  it("uses heads-up action order that matches holdem streets", () => {
+    let state = createStartedRoomState(makeWaitingState(makePlayers(2)));
+
+    expect(state.currentTurnPlayerId).toBe("player-1");
+
+    state = applyPlayerAction(state, { playerId: "player-1", action: "call" });
+    expect(state.currentTurnPlayerId).toBe("player-2");
+
+    state = applyPlayerAction(state, { playerId: "player-2", action: "check" });
+    expect(state.phase).toBe("flop");
+    expect(state.currentTurnPlayerId).toBe("player-2");
+  });
+
   it("rejects invalid turn order and invalid actions", () => {
     const started = createStartedRoomState(makeWaitingState());
 
@@ -180,6 +204,22 @@ describe("game progression", () => {
     expect(state.currentTurnPlayerId).toBe("player-3");
   });
 
+  it.fails("does not reopen betting after a short all-in raise below the minimum raise size", () => {
+    let state = createStartedRoomState(makeWaitingState());
+
+    state = applyPlayerAction(state, { playerId: "player-1", action: "raise", amount: 6 });
+    state.stacks["player-2"] = 3;
+    state = applyPlayerAction(state, { playerId: "player-2", action: "all-in" });
+
+    expect(state.currentBet).toBe(6);
+    expect(state.currentTurnPlayerId).toBe("player-3");
+
+    state = applyPlayerAction(state, { playerId: "player-3", action: "call" });
+
+    expect(state.currentTurnPlayerId).toBe("player-1");
+    expect(state.availableActions["player-1"]).toEqual(["fold", "check", "all-in"]);
+  });
+
   it("ends immediately when every other player folds", () => {
     let state = createStartedRoomState(makeWaitingState());
 
@@ -189,6 +229,59 @@ describe("game progression", () => {
     expect(state.phase).toBe("showdown");
     expect(state.results?.winners[0]?.playerId).toBe("player-3");
     expect(state.results?.winners[0]?.amountWon).toBe(3);
+  });
+
+  it("splits the pot evenly on a true showdown draw", () => {
+    const riverState: RoomState = {
+      ...makeWaitingState(makePlayers(2)),
+      phase: "river",
+      handsByPlayer: {
+        "player-1": [card("建設業", 2, "p1a"), card("小売業", 1, "p1b")],
+        "player-2": [card("銀行業", 4, "p2a"), card("建設業", 3, "p2b")],
+      },
+      board: [
+        card("情報・通信業", 9, "b1"),
+        card("建設業", 8, "b2"),
+        card("小売業", 7, "b3"),
+        card("銀行業", 6, "b4"),
+        card("情報・通信業", 5, "b5"),
+      ],
+      boardRevealCount: 5,
+      stacks: {
+        "player-1": 168,
+        "player-2": 168,
+      },
+      contributions: {
+        "player-1": 32,
+        "player-2": 32,
+      },
+      currentBets: {
+        "player-1": 16,
+        "player-2": 16,
+      },
+      pot: 64,
+      sidePots: [{ amount: 64, eligiblePlayerIds: ["player-1", "player-2"] }],
+      foldedPlayerIds: [],
+      allInPlayerIds: [],
+      dealerIndex: 0,
+      smallBlindIndex: 0,
+      bigBlindIndex: 1,
+      currentTurnPlayerId: "player-2",
+      currentBet: 16,
+      minRaise: 16,
+      lastAggressorPlayerId: "player-1",
+      availableActions: {
+        "player-1": [],
+        "player-2": ["check"],
+      },
+      actionState: { playersToAct: ["player-2"] },
+    };
+
+    const showdown = applyPlayerAction(riverState, { playerId: "player-2", action: "check" });
+
+    expect(showdown.results?.isDraw).toBe(true);
+    expect(showdown.results?.results.find((entry) => entry.playerId === "player-1")?.amountWon).toBe(32);
+    expect(showdown.results?.results.find((entry) => entry.playerId === "player-2")?.amountWon).toBe(32);
   });
 
   it("settles showdown and distributes side pots", () => {
@@ -304,4 +397,8 @@ describe("game progression", () => {
       }),
     ]);
   });
+
+  it.todo("uses burn cards before flop, turn, and river just like standard holdem");
+
+  it.todo("rotates dealer, small blind, and big blind across consecutive hands");
 });

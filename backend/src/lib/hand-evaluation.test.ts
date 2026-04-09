@@ -242,6 +242,88 @@ describe("compareHands", () => {
     expect(result.winners[0]?.evaluation.rank).toBe("one_pair");
   });
 
+  it("compares two pair by high pair, then low pair, then kicker", () => {
+    const result = compareHands([
+      {
+        playerId: "player-1",
+        cards: [
+          card("情報・通信業", 9),
+          card("建設業", 9),
+          card("小売業", 4),
+          card("銀行業", 4),
+          card("情報・通信業", 7),
+          card("建設業", 2),
+          card("小売業", 1),
+        ],
+      },
+      {
+        playerId: "player-2",
+        cards: [
+          card("情報・通信業", 8),
+          card("建設業", 8),
+          card("小売業", 7),
+          card("銀行業", 7),
+          card("情報・通信業", 9),
+          card("建設業", 2),
+          card("小売業", 1),
+        ],
+      },
+    ]);
+
+    expect(result.winners[0]?.playerId).toBe("player-1");
+    expect(result.winners[0]?.evaluation.comparisonValues).toEqual([9, 4, 7]);
+  });
+
+  it("compares full houses by trips before pair", () => {
+    const result = compareHands([
+      {
+        playerId: "player-1",
+        cards: [
+          card("情報・通信業", 7),
+          card("建設業", 7),
+          card("小売業", 7),
+          card("銀行業", 4),
+          card("情報・通信業", 4),
+          card("建設業", 2),
+          card("小売業", 1),
+        ],
+      },
+      {
+        playerId: "player-2",
+        cards: [
+          card("情報・通信業", 6),
+          card("建設業", 6),
+          card("小売業", 6),
+          card("銀行業", 9),
+          card("情報・通信業", 9),
+          card("建設業", 2),
+          card("小売業", 1),
+        ],
+      },
+    ]);
+
+    expect(result.winners[0]?.playerId).toBe("player-1");
+    expect(result.winners[0]?.evaluation.rank).toBe("full_house");
+  });
+
+  it("uses the board and keeps a true split pot when both players have identical five-card hands", () => {
+    const board = [
+      card("情報・通信業", 9),
+      card("建設業", 8),
+      card("小売業", 7),
+      card("銀行業", 6),
+      card("情報・通信業", 5),
+    ];
+    const result = compareHands([
+      { playerId: "player-1", cards: [...board, card("建設業", 2), card("小売業", 1)] },
+      { playerId: "player-2", cards: [...board, card("銀行業", 4), card("建設業", 3)] },
+    ]);
+
+    expect(result.isDraw).toBe(true);
+    expect(result.winners).toHaveLength(2);
+    expect(result.winners[0]?.evaluation.comparisonValues).toEqual([9]);
+  });
+
   it("keeps a draw only when comparison values are identical", () => {
     const board = [
       card("情報・通信業", 9),
