@@ -1,4 +1,4 @@
-import { getPositionLines, resolvePlayerName } from "../lib/game-ui";
+import { getDeckInfoLines, getPositionLines, getPotHelpText, resolvePlayerName } from "../lib/game-ui";
 import type { MainPot, PlayerPositionMap, PublicPlayerState, RoomPhase, SidePot } from "../lib/types";
 
 interface InfoPanelProps {
@@ -41,7 +41,7 @@ export function InfoPanel({
       </div>
       <p className="phase-label">現在 phase: {phaseLabel}</p>
       <div className="info-grid">
-        <p className="meta-text">pot: {pot}</p>
+        <p className="meta-text">pot 総額: {pot}</p>
         <p className="meta-text">main pot: {mainPot?.amount ?? 0}</p>
         <p className="meta-text">あなたの stack: {myStack}</p>
         <p className="meta-text">今回の bet: {currentBet}</p>
@@ -56,7 +56,14 @@ export function InfoPanel({
           </p>
         ))}
       </div>
-      <p className="meta-text">使用業種: {selectedIndustries.join(" / ") || "ゲーム開始後に表示されます。"}</p>
+      <div className="stack tight">
+        {getDeckInfoLines(selectedIndustries).map((line) => (
+          <p key={line} className="meta-text">
+            {line}
+          </p>
+        ))}
+      </div>
+      <p className="hint-text">{getPotHelpText(mainPot, sidePots)}</p>
       {sidePots.length > 0 ? <p className="meta-text">side pot: {sidePots.map((sidePot) => sidePot.amount).join(" / ")}</p> : null}
       {lastActionMessage ? <p className="hint-text">{lastActionMessage}</p> : null}
     </section>

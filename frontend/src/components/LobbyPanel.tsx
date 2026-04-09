@@ -33,6 +33,11 @@ export function LobbyPanel({
         </button>
       </div>
       <p className="meta-text">2 人以上で開始できます。現在は {playerCount} 人です。</p>
+      <ul className="guide-list compact-list">
+        <li>共有 URL を送ると、そのまま同じ部屋へ参加できます。</li>
+        <li>ゲームが始まると 4 業種 × 0〜9 の 40 枚デッキが使われます。</li>
+        <li>数字入力が必要なのは bet / raise だけです。</li>
+      </ul>
       {!canStart ? <p className="hint-text">開始ボタンは 2 人以上の参加で有効になります。</p> : null}
     </section>
   );

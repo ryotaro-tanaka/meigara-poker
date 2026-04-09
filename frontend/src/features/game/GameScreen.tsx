@@ -25,6 +25,8 @@ export function GameScreen({ state, onPlayerAction }: GameScreenProps) {
           <ActionPanel
             availableActions={state.availableActions}
             toCall={state.toCall}
+            currentBet={state.room?.currentBet ?? 0}
+            isMyTurn={state.currentTurnPlayerId === state.playerId}
             currentTurnLabel={getCurrentTurnLabel(state)}
             amountValue={amountValue}
             onAmountChange={setAmountValue}

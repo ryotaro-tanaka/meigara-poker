@@ -1,5 +1,5 @@
 import type { AppState } from "../state/app-state";
-import type { PlayerActionType, PlayerPositionMap, PublicPlayerPosition, PublicPlayerState } from "./types";
+import type { ConnectionStatus, MainPot, PlayerActionType, PlayerPositionMap, PublicPlayerPosition, PublicPlayerState, SidePot } from "./types";
 
 export function resolvePlayerName(players: PublicPlayerState[], playerId: string | null, selfPlayerId?: string | null): string {
   if (!playerId) {
@@ -67,14 +67,14 @@ export function getRoomDescription(phase: AppState["room"] extends { phase: infe
     return "名前を決めて参加者を待ちます。2 人以上そろうとゲームを開始できます。";
   }
 
-  return "自分の手番ではアクションを選び、ベット進行に合わせて pot と場札の変化を確認します。";
+  return "自分の手番ではアクションを選び、pot と場札、相手のベット状況を見ながら進行を確認します。";
 }
 
 export function getWaitingRuleItems(): string[] {
   return [
     "手札 2 枚と場札 5 枚で最強の 5 枚役を作ります。",
-    "SB / BB を置いてから preflop, flop, turn, river の順に進みます。",
-    "同役でもキッカーまで比較し、完全同値だけ引き分けです。",
+    "各ハンドは SB / BB を置いてから preflop, flop, turn, river の順に進みます。",
+    "数字入力が必要なのは bet / raise だけで、call と all-in は必要額が自動で決まります。",
   ];
 }
 
@@ -88,4 +88,112 @@ export function getPositionLines(
     { label: "SB", value: resolvePlayerName(players, positions.smallBlind, selfPlayerId) },
     { label: "BB", value: resolvePlayerName(players, positions.bigBlind, selfPlayerId) },
   ];
+}
+
+export function getConnectionHelpText(status: ConnectionStatus): string {
+  switch (status) {
+    case "loading":
+      return "部屋情報を読み込んでいます。";
+    case "connecting":
+      return "WebSocket を接続中です。数秒待つと同期が始まります。";
+    case "connected":
+      return "接続済みです。操作するとそのまま部屋全体へ反映されます。";
+    case "disconnected":
+      return "接続が切れています。再読み込みで復帰できるか確認してください。";
+    case "error":
+      return "通信または操作で失敗が起きています。手番や入力値も確認してください。";
+    default:
+      return "部屋に入ると接続状態がここに表示されます。";
+  }
+}
+
+export function getServerErrorHelp(message: string | null): string | null {
+  if (!message) {
+    return null;
+  }
+
+  if (message.includes("turn")) {
+    return "いまは自分の手番ではない可能性があります。現在の手番表示を確認してください。";
+  }
+
+  if (message.includes("Cannot bet")) {
+    return "このラウンドはすでにベットが始まっているので、bet ではなく raise を使います。";
+  }
+
+  if (message.includes("Cannot check")) {
+    return "この場面では無料で回せません。続けるなら call か raise が必要です。";
+  }
+
+  if (message.includes("Raise")) {
+    return "raise は追加額ではなく、そのラウンド終了時の最終ベット額を入力します。";
+  }
+
+  return "入力値や現在の手番、使えるアクションの案内を確認してください。";
+}
+
+export function getDeckInfoLines(selectedIndustries: string[]): string[] {
+  if (selectedIndustries.length === 0) {
+    return ["ゲーム開始後に、今回使う 4 業種がここに表示されます。"];
+  }
+
+  return [
+    `今回のスート: ${selectedIndustries.join(" / ")}`,
+    "各業種 0〜9 を 1 枚ずつ使う 4 業種 × 10 枚 = 40 枚構成です。",
+  ];
+}
+
+export function getPotHelpText(mainPot: MainPot | null, sidePots: SidePot[]): string {
+  if (!mainPot) {
+    return "ベットが入ると main pot がここに表示されます。";
+  }
+
+  if (sidePots.length === 0) {
+    return "all-in が起きていないので、いまは main pot だけを争っています。";
+  }
+
+  return "all-in が起きたため、追加で争う side pot が分かれています。";
+}
+
+export function getActionSummary(availableActions: PlayerActionType[], isMyTurn: boolean): string {
+  if (!isMyTurn) {
+    return "今は自分の手番ではありません。";
+  }
+
+  if (availableActions.length === 0) {
+    return "この状況では選べる操作がありません。";
+  }
+
+  return `今選べる操作: ${availableActions.join(" / ")}`;
+}
+
+export function getActionGuidance(
+  availableActions: PlayerActionType[],
+  isMyTurn: boolean,
+  currentBet: number,
+  toCall: number,
+): string[] {
+  if (!isMyTurn) {
+    return ["現在の手番プレイヤーが操作を終えると、自分の選べる操作が有効になります。"];
+  }
+
+  const lines: string[] = ["数字入力が必要なのは bet / raise だけです。"];
+
+  if (currentBet === 0) {
+    lines.push("このラウンドはまだ誰も賭けていないので、最初の攻撃的アクションは bet です。");
+    if (!availableActions.includes("raise")) {
+      lines.push("まだベットがないので raise は使えません。");
+    }
+  } else {
+    lines.push("すでにベットがあるので、新しく bet する代わりに raise を使います。");
+  }
+
+  if (toCall > 0 && !availableActions.includes("check")) {
+    lines.push("いま check はできず、続けるなら call か raise、降りるなら fold です。");
+  }
+
+  if (availableActions.includes("all-in")) {
+    lines.push("all-in は残り stack をすべて賭けます。");
+  }
+
+  return lines;
 }

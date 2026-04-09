@@ -1,4 +1,5 @@
 import type { ConnectionStatus, RoomPhase } from "../lib/types";
+import { getConnectionHelpText, getServerErrorHelp } from "../lib/game-ui";
 import { StatusBadge } from "./StatusBadge";
 
 interface RoomHeaderProps {
@@ -24,7 +25,9 @@ export function RoomHeader({ roomId, roomName, description, status, phase, playe
         <span className="hero-stat">phase: {phase ?? "waiting"}</span>
         <span className="hero-stat">players: {playerCount}/6</span>
       </div>
+      <p className="meta-text">{getConnectionHelpText(status)}</p>
       {serverError ? <p className="error-text">{serverError}</p> : null}
+      {serverError ? <p className="hint-text">{getServerErrorHelp(serverError)}</p> : null}
     </section>
   );
 }

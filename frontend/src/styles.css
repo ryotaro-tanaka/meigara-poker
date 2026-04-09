@@ -377,12 +377,21 @@ button {
   line-height: 1.7;
 }
 
+.guide-list.compact-list {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 .share-box {
   padding: 14px 16px;
   border-radius: 16px;
   background: rgba(19, 32, 51, 0.05);
   color: #28415d;
   word-break: break-all;
+}
+
+.share-box + .action-row {
+  align-items: center;
 }
 
 .phase-timeline {
