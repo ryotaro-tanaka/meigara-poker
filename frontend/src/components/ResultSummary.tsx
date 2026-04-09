@@ -1,15 +1,15 @@
 import { resolvePlayerName } from "../lib/game-ui";
-import type { GameResultSummary, PlayerState } from "../lib/types";
+import type { GameResultSummary, PublicPlayerState } from "../lib/types";
 
 interface ResultSummaryProps {
   results: GameResultSummary | null;
-  players: PlayerState[];
+  players: PublicPlayerState[];
 }
 
 export function ResultSummary({ results, players }: ResultSummaryProps) {
   if (!results) {
     return (
-      <section className="stack">
+      <section className="panel stack">
         <div className="section-heading">
           <h2>結果</h2>
         </div>
@@ -19,7 +19,7 @@ export function ResultSummary({ results, players }: ResultSummaryProps) {
   }
 
   return (
-    <section className="stack">
+    <section className="panel stack">
       <div className="section-heading">
         <h2>結果</h2>
       </div>
@@ -45,7 +45,7 @@ export function ResultSummary({ results, players }: ResultSummaryProps) {
         <ul className="result-list">
           {results.sidePots.map((sidePot, index) => (
             <li key={`${sidePot.amount}-${index}`}>
-              <strong>pot {index + 1}</strong>
+              <strong>side pot {index + 1}</strong>
               <span>
                 {sidePot.amount} / {sidePot.winnerPlayerIds.map((playerId) => resolvePlayerName(players, playerId)).join(", ")}
               </span>

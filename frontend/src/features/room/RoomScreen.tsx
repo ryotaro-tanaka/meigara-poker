@@ -78,7 +78,7 @@ export function RoomScreen({ state, shareUrl, onNameSubmit, onNameChange, onStar
                 <h2>参加者一覧</h2>
                 <StatusBadge status={state.connectionStatus} />
               </div>
-              <PlayerList players={state.room?.players ?? []} selfPlayerId={state.playerId} />
+              <PlayerList players={state.room?.players ?? []} selfPlayerId={state.playerId} showBettingInfo />
             </section>
             <SharePanel shareUrl={shareUrl} />
           </aside>

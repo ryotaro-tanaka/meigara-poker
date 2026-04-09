@@ -21,7 +21,7 @@ export function CreateRoomScreen({ defaultRoomName, isSubmitting, error, onSubmi
         <div className="hero-stats">
           <span className="hero-stat">2〜6 人</span>
           <span className="hero-stat">手札 2 枚 + 場札 5 枚</span>
-          <span className="hero-stat">同役は引き分け</span>
+          <span className="hero-stat">SB / BB とベッティングあり</span>
         </div>
       </section>
 

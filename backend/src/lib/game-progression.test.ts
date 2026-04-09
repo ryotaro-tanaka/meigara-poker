@@ -264,4 +264,32 @@ describe("game progression", () => {
     expect(snapshot.pot).toBe(6);
     expect(snapshot.currentTurnPlayerId).toBe("player-2");
   });
+
+  it("includes public player betting info in room snapshot", () => {
+    const state = createStartedRoomState(makeWaitingState(makePlayers(2)));
+    const snapshot = createRoomSnapshot(state);
+
+    expect(snapshot.players).toEqual([
+      expect.objectContaining({
+        playerId: "player-1",
+        stack: 199,
+        currentBet: 1,
+        totalContribution: 1,
+        isFolded: false,
+        isAllIn: false,
+        isCurrentTurn: true,
+        position: "dealer",
+      }),
+      expect.objectContaining({
+        playerId: "player-2",
+        stack: 198,
+        currentBet: 2,
+        totalContribution: 2,
+        isFolded: false,
+        isAllIn: false,
+        isCurrentTurn: false,
+        position: "big_blind",
+      }),
+    ]);
+  });
 });

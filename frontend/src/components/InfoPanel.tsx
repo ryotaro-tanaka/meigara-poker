@@ -1,5 +1,5 @@
 import { getPositionLines, resolvePlayerName } from "../lib/game-ui";
-import type { PlayerPositionMap, PlayerState, RoomPhase, SidePot } from "../lib/types";
+import type { PlayerPositionMap, PublicPlayerState, RoomPhase, SidePot } from "../lib/types";
 
 interface InfoPanelProps {
   phaseLabel: RoomPhase;
@@ -12,7 +12,7 @@ interface InfoPanelProps {
   toCall: number;
   positions: PlayerPositionMap;
   currentTurnPlayerId: string | null;
-  players: PlayerState[];
+  players: PublicPlayerState[];
   selfPlayerId: string | null;
   lastActionMessage: string | null;
 }

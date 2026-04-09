@@ -25,18 +25,19 @@ export function ActionPanel({ availableActions, toCall, currentTurnLabel, amount
       <p className="meta-text">現在の手番: {currentTurnLabel}</p>
       {needsAmount ? (
         <label className="field" htmlFor={amountId}>
-          <span>bet / raise 金額</span>
+          <span>bet / raise の最終ベット額</span>
           <input id={amountId} value={amountValue} onChange={(event) => onAmountChange(event.target.value)} inputMode="numeric" />
+          <span className="meta-text">現在ラウンド終了時の自分の合計 bet 額になるよう入力します。</span>
         </label>
       ) : null}
-      <div className="button-grid">
+      <div className="button-grid action-grid">
         {(["fold", "check", "call", "bet", "raise", "all-in"] as PlayerActionType[]).map((action) => {
           const enabled = availableActions.includes(action);
 
           return (
             <button
               key={action}
-              className={action === "fold" ? "secondary-button" : "primary-button"}
+              className={`${action === "fold" ? "secondary-button" : "primary-button"}${enabled ? "" : " disabled-button"}`}
               disabled={!enabled}
               onClick={() => onAction(action, action === "bet" || action === "raise" ? amount : undefined)}
             >

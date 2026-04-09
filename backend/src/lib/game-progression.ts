@@ -8,6 +8,18 @@ export interface PlayerState {
   connected: boolean;
 }
 
+export type PublicPlayerPosition = "dealer" | "small_blind" | "big_blind" | null;
+
+export interface PublicPlayerState extends PlayerState {
+  stack: number;
+  currentBet: number;
+  totalContribution: number;
+  isFolded: boolean;
+  isAllIn: boolean;
+  isCurrentTurn: boolean;
+  position: PublicPlayerPosition;
+}
+
 export type RoomPhase = "waiting" | "preflop" | "flop" | "turn" | "river" | "showdown";
 export type PlayerActionType = "fold" | "check" | "call" | "bet" | "raise" | "all-in";
 
@@ -87,7 +99,7 @@ export interface RoomSnapshot {
   roomId: string;
   roomName: string;
   phase: RoomPhase;
-  players: PlayerState[];
+  players: PublicPlayerState[];
   playerCount: number;
   selectedIndustries: string[];
   deckCount: number;
@@ -264,6 +276,35 @@ function getPositions(state: RoomState): PlayerPositionMap {
 
 function getVisibleBoard(state: RoomState): DeckCard[] {
   return state.board.slice(0, state.boardRevealCount);
+}
+
+function getPlayerPosition(state: RoomState, playerId: string): PublicPlayerPosition {
+  if (state.dealerIndex !== null && state.players[state.dealerIndex]?.playerId === playerId) {
+    return "dealer";
+  }
+
+  if (state.smallBlindIndex !== null && state.players[state.smallBlindIndex]?.playerId === playerId) {
+    return "small_blind";
+  }
+
+  if (state.bigBlindIndex !== null && state.players[state.bigBlindIndex]?.playerId === playerId) {
+    return "big_blind";
+  }
+
+  return null;
+}
+
+function createPublicPlayerState(state: RoomState, player: PlayerState): PublicPlayerState {
+  return {
+    ...player,
+    stack: state.stacks[player.playerId] ?? INITIAL_STACK,
+    currentBet: state.currentBets[player.playerId] ?? 0,
+    totalContribution: state.contributions[player.playerId] ?? 0,
+    isFolded: state.foldedPlayerIds.includes(player.playerId),
+    isAllIn: state.allInPlayerIds.includes(player.playerId),
+    isCurrentTurn: state.currentTurnPlayerId === player.playerId,
+    position: getPlayerPosition(state, player.playerId),
+  };
 }
 
 function getToCall(state: RoomState, playerId: string): number {
@@ -557,7 +598,7 @@ export function createRoomSnapshot(state: RoomState): RoomSnapshot {
     roomId: state.roomId,
     roomName: state.roomName,
     phase: state.phase,
-    players: state.players,
+    players: state.players.map((player) => createPublicPlayerState(state, player)),
     playerCount: state.players.length,
     selectedIndustries: state.selectedIndustries,
     deckCount: state.deck.length,

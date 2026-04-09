@@ -1,7 +1,7 @@
 import type { AppState } from "../state/app-state";
-import type { PlayerActionType, PlayerPositionMap, PlayerState } from "./types";
+import type { PlayerActionType, PlayerPositionMap, PublicPlayerPosition, PublicPlayerState } from "./types";
 
-export function resolvePlayerName(players: PlayerState[], playerId: string | null, selfPlayerId?: string | null): string {
+export function resolvePlayerName(players: PublicPlayerState[], playerId: string | null, selfPlayerId?: string | null): string {
   if (!playerId) {
     return "未設定";
   }
@@ -30,6 +30,30 @@ export function getActionLabel(action: PlayerActionType, toCall?: number): strin
   }
 }
 
+export function getPositionBadgeLabel(position: PublicPlayerPosition): string | null {
+  switch (position) {
+    case "dealer":
+      return "Dealer";
+    case "small_blind":
+      return "SB";
+    case "big_blind":
+      return "BB";
+    default:
+      return null;
+  }
+}
+
+export function getPlayerStatusSummary(player: PublicPlayerState): string {
+  const tags = [
+    player.isCurrentTurn ? "手番" : null,
+    player.isFolded ? "fold" : null,
+    player.isAllIn ? "all-in" : null,
+    !player.connected ? "切断" : null,
+  ].filter((value): value is string => Boolean(value));
+
+  return tags.join(" / ");
+}
+
 export function getCurrentTurnLabel(state: Pick<AppState, "currentTurnPlayerId" | "playerId" | "room">): string {
   if (!state.currentTurnPlayerId) {
     return "進行待ち";
@@ -55,7 +79,7 @@ export function getWaitingRuleItems(): string[] {
 }
 
 export function getPositionLines(
-  players: PlayerState[],
+  players: PublicPlayerState[],
   positions: PlayerPositionMap,
   selfPlayerId: string | null,
 ): Array<{ label: string; value: string }> {

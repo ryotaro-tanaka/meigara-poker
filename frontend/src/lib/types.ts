@@ -12,6 +12,18 @@ export interface PlayerState {
   connected: boolean;
 }
 
+export type PublicPlayerPosition = "dealer" | "small_blind" | "big_blind" | null;
+
+export interface PublicPlayerState extends PlayerState {
+  stack: number;
+  currentBet: number;
+  totalContribution: number;
+  isFolded: boolean;
+  isAllIn: boolean;
+  isCurrentTurn: boolean;
+  position: PublicPlayerPosition;
+}
+
 export type RoomPhase = "waiting" | "preflop" | "flop" | "turn" | "river" | "showdown";
 export type PlayerActionType = "fold" | "check" | "call" | "bet" | "raise" | "all-in";
 
@@ -72,7 +84,7 @@ export interface RoomSnapshot {
   roomId: string;
   roomName: string;
   phase: RoomPhase;
-  players: PlayerState[];
+  players: PublicPlayerState[];
   playerCount: number;
   selectedIndustries: string[];
   deckCount: number;
