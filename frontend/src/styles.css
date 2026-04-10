@@ -54,6 +54,10 @@ button {
   padding-bottom: 24px;
 }
 
+.home-hero {
+  margin-bottom: 16px;
+}
+
 .hero-topline,
 .section-heading,
 .action-row {
@@ -119,6 +123,12 @@ button {
   gap: 16px;
 }
 
+.waiting-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
 .room-layout,
 .game-layout {
   display: grid;
@@ -155,6 +165,16 @@ button {
 .panel.emphasis {
   border-color: rgba(29, 119, 107, 0.18);
   box-shadow: 0 24px 70px rgba(29, 119, 107, 0.08);
+}
+
+.waiting-summary {
+  gap: 12px;
+}
+
+.waiting-summary-title {
+  margin: 0;
+  font-size: clamp(28px, 5vw, 40px);
+  line-height: 1.08;
 }
 
 .field {
@@ -405,6 +425,10 @@ button {
   align-items: center;
 }
 
+.action-row-start {
+  justify-content: flex-start;
+}
+
 .phase-timeline {
   list-style: none;
   margin: 0;
@@ -465,12 +489,32 @@ button {
   }
 
   .room-layout,
-  .game-layout {
+  .game-layout,
+  .waiting-layout {
     grid-template-columns: 1fr;
   }
 
   .primary-button,
-  .secondary-button {
+  .secondary-button,
+  .ghost-button {
     width: 100%;
+  }
+
+  .app-shell {
+    padding: 20px 12px 48px;
+  }
+
+  .hero-card,
+  .panel {
+    border-radius: 20px;
+  }
+
+  .hero-card,
+  .panel {
+    padding: 18px;
+  }
+
+  .waiting-summary .hero-stats {
+    gap: 8px;
   }
 }

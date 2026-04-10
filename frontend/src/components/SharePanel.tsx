@@ -21,14 +21,14 @@ export function SharePanel({ shareUrl }: SharePanelProps) {
       <div className="section-heading">
         <h2>共有</h2>
       </div>
-      <p className="meta-text">この URL を共有すると、別のブラウザや別端末から同じ部屋に参加できます。</p>
+      <p className="meta-text">この URL を共有すると、ほかの人も同じ部屋にそのまま参加できます。</p>
       <div className="share-box">{shareUrl}</div>
-      <div className="action-row">
+      <div className="action-row action-row-start">
         <button className="secondary-button" onClick={() => void handleCopy()}>
           URL をコピー
         </button>
-        <p className="meta-text">部屋に入り直すときも同じ URL を使います。</p>
       </div>
+      <p className="meta-text">部屋に入り直すときも同じ URL を使います。</p>
       {copyMessage ? <p className="hint-text">{copyMessage}</p> : null}
     </section>
   );

@@ -12,12 +12,10 @@ export function CreateRoomScreen({ defaultRoomName, isSubmitting, error, onSubmi
 
   return (
     <main className="app-shell">
-      <section className="hero-card">
+      <section className="hero-card home-hero">
         <p className="eyebrow">Meigara Poker</p>
-        <h1>部屋を作成して、そのまま待機画面からゲームを始めます。</h1>
-        <p className="description">
-          Cloudflare Workers の room state を正として、待機から showdown まで WebSocket で同期します。
-        </p>
+        <h1>銘柄ポーカー</h1>
+        <p className="description">部屋を作って、2〜6 人でそのまま遊べるオンラインポーカーです。</p>
         <div className="hero-stats">
           <span className="hero-stat">2〜6 人</span>
           <span className="hero-stat">手札 2 枚 + 場札 5 枚</span>
@@ -30,6 +28,7 @@ export function CreateRoomScreen({ defaultRoomName, isSubmitting, error, onSubmi
           <div className="section-heading">
             <h2>部屋作成</h2>
           </div>
+          <p className="meta-text">部屋名を決めると、そのまま待機画面へ進みます。</p>
           <label className="field">
             <span>部屋名</span>
             <input
@@ -46,14 +45,9 @@ export function CreateRoomScreen({ defaultRoomName, isSubmitting, error, onSubmi
 
         <section className="panel stack">
           <div className="section-heading">
-            <h2>最初の流れ</h2>
+            <h2>遊び方</h2>
           </div>
-          <ol className="guide-list">
-            <li>部屋名を入力して作成します。</li>
-            <li>待機画面で自分の名前を決めます。</li>
-            <li>共有 URL から他の人が参加します。</li>
-            <li>2 人以上そろったらゲームを開始します。</li>
-          </ol>
+          <p className="meta-text">待機画面で名前を決めて URL を共有し、2 人以上そろったらゲームを始めます。</p>
         </section>
       </section>
     </main>

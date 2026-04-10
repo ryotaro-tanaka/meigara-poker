@@ -3,6 +3,7 @@ import { PlayerList } from "../../components/PlayerList";
 import { RoomHeader } from "../../components/RoomHeader";
 import { SharePanel } from "../../components/SharePanel";
 import { StatusBadge } from "../../components/StatusBadge";
+import { WaitingRoomSummary } from "../../components/WaitingRoomSummary";
 import { GameScreen } from "../game/GameScreen";
 import { getRoomDescription, getWaitingRuleItems } from "../../lib/game-ui";
 import type { AppState } from "../../state/app-state";
@@ -41,76 +42,85 @@ export function RoomScreen({
 
   return (
     <main className="app-shell">
-      <RoomHeader
-        roomId={state.roomId}
-        roomName={state.room?.roomName ?? "ルームを読み込み中..."}
-        description={description}
-        status={state.connectionStatus}
-        phase={state.room?.phase ?? null}
-        playerCount={state.room?.playerCount ?? 0}
-        serverError={state.serverError}
-      />
-
       {isWaiting ? (
-        <section className="room-layout">
-          <section className="room-main stack">
-            <LobbyPanel
-              playerName={state.playerName}
-              playerCount={state.room?.playerCount ?? 0}
-              canStart={canStart}
-              onNameChange={onNameChange}
-              onNameSubmit={onNameSubmit}
-              onStartGame={onStartGame}
-            />
-            <SharePanel shareUrl={shareUrl} />
+        <section className="stack">
+          <WaitingRoomSummary
+            roomId={state.roomId}
+            roomName={state.room?.roomName ?? "ルームを読み込み中..."}
+            description={description}
+            status={state.connectionStatus}
+            playerCount={state.room?.playerCount ?? 0}
+          />
+          {state.serverError ? <p className="error-text">{state.serverError}</p> : null}
+          <section className="waiting-layout">
+            <section className="room-main stack">
+              <LobbyPanel
+                playerName={state.playerName}
+                playerCount={state.room?.playerCount ?? 0}
+                canStart={canStart}
+                onNameChange={onNameChange}
+                onNameSubmit={onNameSubmit}
+                onStartGame={onStartGame}
+              />
+              <SharePanel shareUrl={shareUrl} />
+              <section className="panel stack">
+                <div className="section-heading">
+                  <h2>待機者一覧</h2>
+                  <StatusBadge status={state.connectionStatus} />
+                </div>
+                <PlayerList players={state.room?.players ?? []} selfPlayerId={state.playerId} />
+              </section>
+              <section className="panel stack">
+                <div className="section-heading">
+                  <h2>ルール</h2>
+                </div>
+                <ul className="guide-list compact-list">
+                  {getWaitingRuleItems().map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </section>
+            </section>
           </section>
-          <aside className="room-side stack">
-            <section className="panel stack">
-              <div className="section-heading">
-                <h2>待機者一覧</h2>
-                <StatusBadge status={state.connectionStatus} />
-              </div>
-              <PlayerList players={state.room?.players ?? []} selfPlayerId={state.playerId} />
-            </section>
-            <section className="panel stack">
-              <div className="section-heading">
-                <h2>ルール</h2>
-              </div>
-              <ul className="guide-list">
-                {getWaitingRuleItems().map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </section>
-          </aside>
         </section>
       ) : (
-        <section className="room-layout game-mode">
-          <section className="room-main stack">
-            <GameScreen
-              state={state}
-              onPlayerAction={onPlayerAction}
-              onReadyChange={onReadyChange}
-              onLeaveRoom={onLeaveRoom}
-              onAcknowledgeGameOver={onAcknowledgeGameOver}
-            />
-          </section>
-          <aside className="room-side stack">
-            <section className="panel stack">
-              <div className="section-heading">
-                <h2>参加者一覧</h2>
-                <StatusBadge status={state.connectionStatus} />
-              </div>
-              <PlayerList
-                players={state.room?.players ?? []}
-                selfPlayerId={state.playerId}
-                showBettingInfo
-                readyPlayerIds={state.readyPlayerIds}
+        <>
+          <RoomHeader
+            roomId={state.roomId}
+            roomName={state.room?.roomName ?? "ルームを読み込み中..."}
+            description={description}
+            status={state.connectionStatus}
+            phase={state.room?.phase ?? null}
+            playerCount={state.room?.playerCount ?? 0}
+            serverError={state.serverError}
+          />
+          <section className="room-layout game-mode">
+            <section className="room-main stack">
+              <GameScreen
+                state={state}
+                onPlayerAction={onPlayerAction}
+                onReadyChange={onReadyChange}
+                onLeaveRoom={onLeaveRoom}
+                onAcknowledgeGameOver={onAcknowledgeGameOver}
               />
             </section>
-            <SharePanel shareUrl={shareUrl} />
-          </aside>
-        </section>
+            <aside className="room-side stack">
+              <section className="panel stack">
+                <div className="section-heading">
+                  <h2>参加者一覧</h2>
+                  <StatusBadge status={state.connectionStatus} />
+                </div>
+                <PlayerList
+                  players={state.room?.players ?? []}
+                  selfPlayerId={state.playerId}
+                  showBettingInfo
+                  readyPlayerIds={state.readyPlayerIds}
+                />
+              </section>
+              <SharePanel shareUrl={shareUrl} />
+            </aside>
+          </section>
+        </>
       )}
     </main>
   );

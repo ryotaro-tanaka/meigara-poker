@@ -76,7 +76,7 @@ export function getCurrentTurnLabel(state: Pick<AppState, "currentTurnPlayerId" 
 
 export function getRoomDescription(phase: AppState["room"] extends { phase: infer T } ? T : string): string {
   if (phase === "waiting") {
-    return "名前を決めて参加者を待ちます。2 人以上そろうとゲームを開始できます。";
+    return "名前を決めて参加者を待ちます。URL を共有して、2 人以上そろったらゲームを開始できます。";
   }
 
   if (phase === "between_hands") {
@@ -113,8 +113,8 @@ export function getStandingStatusLabel(status: FinalStanding["status"]): string 
 export function getWaitingRuleItems(): string[] {
   return [
     "手札 2 枚と場札 5 枚で最強の 5 枚役を作ります。",
+    "2 人以上そろうとゲームを開始できます。",
     "各ハンドは SB / BB を置いてから preflop, flop, turn, river の順に進みます。",
-    "数字入力が必要なのは bet / raise だけで、call と all-in は必要額が自動で決まります。",
   ];
 }
 
