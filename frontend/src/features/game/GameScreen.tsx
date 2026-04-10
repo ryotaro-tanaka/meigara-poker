@@ -11,10 +11,12 @@ import type { AppState } from "../../state/app-state";
 interface GameScreenProps {
   state: AppState;
   onPlayerAction: (action: PlayerActionType, amount?: number) => void;
+  onStartGame: () => void;
 }
 
-export function GameScreen({ state, onPlayerAction }: GameScreenProps) {
+export function GameScreen({ state, onPlayerAction, onStartGame }: GameScreenProps) {
   const [amountValue, setAmountValue] = useState("4");
+  const isBetweenHands = state.room?.phase === "between_hands";
 
   return (
     <section className="stack">
@@ -22,16 +24,30 @@ export function GameScreen({ state, onPlayerAction }: GameScreenProps) {
         <section className="game-main stack">
           <CardRow cards={state.hand} title="自分の手札" emptyLabel="配布待ちです。" />
           <CardRow cards={state.board} title="公開済み場札" emptyLabel="まだ公開されていません。" />
-          <ActionPanel
-            availableActions={state.availableActions}
-            toCall={state.toCall}
-            currentBet={state.room?.currentBet ?? 0}
-            isMyTurn={state.currentTurnPlayerId === state.playerId}
-            currentTurnLabel={getCurrentTurnLabel(state)}
-            amountValue={amountValue}
-            onAmountChange={setAmountValue}
-            onAction={onPlayerAction}
-          />
+          {isBetweenHands ? (
+            <section className="panel stack">
+              <div className="section-heading">
+                <h2>次ハンド待ち</h2>
+              </div>
+              <p className="hint-text">前のハンド結果を確認できます。準備ができたら次のハンドを開始してください。</p>
+              <div className="action-row">
+                <button className="primary-button" onClick={onStartGame}>
+                  次のハンドを開始
+                </button>
+              </div>
+            </section>
+          ) : (
+            <ActionPanel
+              availableActions={state.availableActions}
+              toCall={state.toCall}
+              currentBet={state.room?.currentBet ?? 0}
+              isMyTurn={state.currentTurnPlayerId === state.playerId}
+              currentTurnLabel={getCurrentTurnLabel(state)}
+              amountValue={amountValue}
+              onAmountChange={setAmountValue}
+              onAction={onPlayerAction}
+            />
+          )}
           <ResultSummary results={state.results} players={state.room?.players ?? []} />
         </section>
         <aside className="game-side stack">

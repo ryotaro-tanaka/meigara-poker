@@ -226,9 +226,11 @@ describe("game progression", () => {
     state = applyPlayerAction(state, { playerId: "player-1", action: "fold" });
     state = applyPlayerAction(state, { playerId: "player-2", action: "fold" });
 
-    expect(state.phase).toBe("showdown");
+    expect(state.phase).toBe("between_hands");
     expect(state.results?.winners[0]?.playerId).toBe("player-3");
     expect(state.results?.winners[0]?.amountWon).toBe(3);
+    expect(state.pot).toBe(0);
+    expect(state.currentBet).toBe(0);
   });
 
   it("splits the pot evenly on a true showdown draw", () => {
@@ -341,7 +343,7 @@ describe("game progression", () => {
 
     const showdown = applyPlayerAction(riverState, { playerId: "player-3", action: "check" });
 
-    expect(showdown.phase).toBe("showdown");
+    expect(showdown.phase).toBe("between_hands");
     expect(showdown.results?.mainPot).toEqual({
       amount: 12,
       eligiblePlayerIds: ["player-1", "player-2", "player-3"],
@@ -352,6 +354,60 @@ describe("game progression", () => {
     ]);
     expect(showdown.results?.results.find((entry) => entry.playerId === "player-1")?.amountWon).toBe(16);
     expect(showdown.results?.results.find((entry) => entry.playerId === "player-3")?.amountWon).toBe(0);
+  });
+
+  it("keeps result display while resetting hand-scoped betting state between hands", () => {
+    let state = createStartedRoomState(makeWaitingState());
+
+    state = applyPlayerAction(state, { playerId: "player-1", action: "fold" });
+    state = applyPlayerAction(state, { playerId: "player-2", action: "fold" });
+
+    const snapshot = createRoomSnapshot(state);
+    const playerState = createPlayerRoomState(state, "player-3");
+
+    expect(state.phase).toBe("between_hands");
+    expect(state.results).not.toBeNull();
+    expect(state.contributions).toEqual({
+      "player-1": 0,
+      "player-2": 0,
+      "player-3": 0,
+    });
+    expect(state.currentBets).toEqual({
+      "player-1": 0,
+      "player-2": 0,
+      "player-3": 0,
+    });
+    expect(snapshot.board).toHaveLength(5);
+    expect(snapshot.boardRevealCount).toBe(5);
+    expect(snapshot.currentTurnPlayerId).toBeNull();
+    expect(playerState.availableActions).toEqual([]);
+    expect(playerState.hand).toHaveLength(2);
+    expect(playerState.board).toHaveLength(5);
+  });
+
+  it("starts a new hand from between_hands while preserving player stacks", () => {
+    let state = createStartedRoomState(makeWaitingState());
+
+    state = applyPlayerAction(state, { playerId: "player-1", action: "fold" });
+    state = applyPlayerAction(state, { playerId: "player-2", action: "fold" });
+
+    const previousStacks = { ...state.stacks };
+    const nextDeck = [...makeDeck()].reverse();
+
+    const restarted = createStartedRoomState({
+      ...state,
+      deck: nextDeck,
+      selectedIndustries: ["銀行業", "小売業", "建設業", "情報・通信業"],
+    });
+
+    expect(restarted.phase).toBe("preflop");
+    expect(restarted.results).toBeNull();
+    expect(restarted.board).toHaveLength(5);
+    expect(restarted.handsByPlayer["player-1"]).toHaveLength(2);
+    expect(restarted.stacks["player-1"]).toBe(previousStacks["player-1"]);
+    expect(restarted.stacks["player-2"]).toBe(previousStacks["player-2"] - 1);
+    expect(restarted.stacks["player-3"]).toBe(previousStacks["player-3"] - 2);
+    expect(restarted.pot).toBe(3);
   });
 
   it("restores the current phase and shared betting state through room snapshot", () => {

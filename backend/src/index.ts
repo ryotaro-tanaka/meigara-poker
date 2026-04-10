@@ -425,7 +425,7 @@ export class RoomDurableObject {
     }));
     this.broadcastActionApplied(nextState, playerId, payload.action, payload.amount);
 
-    if (nextState.phase !== previousPhase && nextState.phase !== "showdown") {
+    if (nextState.phase !== previousPhase && nextState.phase !== "showdown" && nextState.phase !== "between_hands") {
       this.log("info", "phase_advanced", toLogContext(nextState, {
         transition: `${previousPhase} -> ${nextState.phase}`,
       }));

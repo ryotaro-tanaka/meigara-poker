@@ -20,7 +20,7 @@ export interface PublicPlayerState extends PlayerState {
   position: PublicPlayerPosition;
 }
 
-export type RoomPhase = "waiting" | "preflop" | "flop" | "turn" | "river" | "showdown";
+export type RoomPhase = "waiting" | "preflop" | "flop" | "turn" | "river" | "showdown" | "between_hands";
 export type PlayerActionType = "fold" | "check" | "call" | "bet" | "raise" | "all-in";
 
 export interface GameResultWinner {
@@ -244,6 +244,7 @@ function boardRevealCountForPhase(phase: RoomPhase): number {
       return 4;
     case "river":
     case "showdown":
+    case "between_hands":
       return 5;
   }
 }
@@ -289,7 +290,19 @@ function getPositions(state: RoomState): PlayerPositionMap {
 }
 
 function getVisibleBoard(state: RoomState): DeckCard[] {
+  if (state.phase === "between_hands") {
+    return state.results?.finalBoard ?? [];
+  }
+
   return state.board.slice(0, state.boardRevealCount);
+}
+
+function getVisibleHand(state: RoomState, playerId: string): DeckCard[] {
+  if (state.phase === "between_hands") {
+    return state.results?.results.find((result) => result.playerId === playerId)?.hand ?? [];
+  }
+
+  return state.handsByPlayer[playerId] ?? [];
 }
 
 function getPlayerPosition(state: RoomState, playerId: string): PublicPlayerPosition {
@@ -377,7 +390,7 @@ function commitChips(state: RoomState, playerId: string, amount: number): number
 }
 
 function getAvailableActionsForPlayer(state: RoomState, playerId: string): PlayerActionType[] {
-  if (state.phase === "waiting" || state.phase === "showdown") {
+  if (state.phase === "waiting" || state.phase === "showdown" || state.phase === "between_hands") {
     return [];
   }
 
@@ -419,6 +432,31 @@ function updateAvailableActions(state: RoomState): void {
   state.availableActions = Object.fromEntries(
     state.players.map((player) => [player.playerId, getAvailableActionsForPlayer(state, player.playerId)]),
   );
+}
+
+function createBetweenHandsState(state: RoomState): RoomState {
+  const nextState = cloneState(state);
+
+  nextState.phase = "between_hands";
+  nextState.deck = [];
+  nextState.selectedIndustries = [];
+  nextState.handsByPlayer = {};
+  nextState.board = [];
+  nextState.boardRevealCount = 0;
+  nextState.contributions = createEmptyMap(nextState.players, 0);
+  nextState.currentBets = createEmptyMap(nextState.players, 0);
+  nextState.pot = 0;
+  nextState.sidePots = [];
+  nextState.foldedPlayerIds = [];
+  nextState.allInPlayerIds = [];
+  nextState.currentTurnPlayerId = null;
+  nextState.currentBet = 0;
+  nextState.minRaise = BIG_BLIND;
+  nextState.lastAggressorPlayerId = null;
+  nextState.availableActions = Object.fromEntries(nextState.players.map((player) => [player.playerId, []]));
+  nextState.actionState = { playersToAct: [] };
+
+  return nextState;
 }
 
 function initializeBettingRound(state: RoomState, phase: Exclude<RoomPhase, "waiting" | "showdown">): RoomState {
@@ -473,11 +511,7 @@ function settleUncontestedWin(state: RoomState, winnerPlayerId: string): RoomSta
     sidePots,
   };
 
-  nextState.pot = 0;
-  nextState.currentBet = 0;
-  nextState.actionState = { playersToAct: [] };
-  updateAvailableActions(nextState);
-  return nextState;
+  return createBetweenHandsState(nextState);
 }
 
 function settleShowdown(state: RoomState): RoomState {
@@ -557,11 +591,7 @@ function settleShowdown(state: RoomState): RoomState {
     sidePots,
   };
 
-  nextState.pot = 0;
-  nextState.currentBet = 0;
-  nextState.actionState = { playersToAct: [] };
-  updateAvailableActions(nextState);
-  return nextState;
+  return createBetweenHandsState(nextState);
 }
 
 function advanceAfterCompletedRound(state: RoomState): RoomState {
@@ -623,6 +653,7 @@ function assertPlayerCanAct(state: RoomState, playerId: string): void {
 
 export function createRoomSnapshot(state: RoomState): RoomSnapshot {
   const { mainPot, sidePots } = splitMainAndSidePots(state.sidePots);
+  const visibleBoard = getVisibleBoard(state);
 
   return {
     roomId: state.roomId,
@@ -632,8 +663,8 @@ export function createRoomSnapshot(state: RoomState): RoomSnapshot {
     playerCount: state.players.length,
     selectedIndustries: state.selectedIndustries,
     deckCount: state.deck.length,
-    board: getVisibleBoard(state),
-    boardRevealCount: state.boardRevealCount,
+    board: visibleBoard,
+    boardRevealCount: visibleBoard.length,
     results: state.results,
     createdAt: state.createdAt,
     pot: state.pot,
@@ -647,12 +678,13 @@ export function createRoomSnapshot(state: RoomState): RoomSnapshot {
 
 export function createPlayerRoomState(state: RoomState, playerId: string): PlayerRoomState {
   const { mainPot, sidePots } = splitMainAndSidePots(state.sidePots);
+  const visibleBoard = getVisibleBoard(state);
 
   return {
     room: createRoomSnapshot(state),
     selfPlayerId: playerId,
-    hand: state.handsByPlayer[playerId] ?? [],
-    board: getVisibleBoard(state),
+    hand: getVisibleHand(state, playerId),
+    board: visibleBoard,
     results: state.results,
     myStack: state.stacks[playerId] ?? INITIAL_STACK,
     currentBet: state.currentBets[playerId] ?? 0,
@@ -666,14 +698,14 @@ export function createPlayerRoomState(state: RoomState, playerId: string): Playe
 }
 
 export function createStartedRoomState(state: RoomState): RoomState {
-  if (state.phase !== "waiting") {
-    throw new Error("Game has already started.");
+  if (state.phase !== "waiting" && state.phase !== "between_hands") {
+    throw new Error("Cannot start a new hand from the current phase.");
   }
 
   validateStartablePlayers(state.players);
 
   const { handsByPlayer, board } = dealCards(state.deck, state.players);
-  const stacks = createEmptyMap(state.players, INITIAL_STACK);
+  const stacks = Object.fromEntries(state.players.map((player) => [player.playerId, state.stacks[player.playerId] ?? INITIAL_STACK]));
   const contributions = createEmptyMap(state.players, 0);
   const currentBets = createEmptyMap(state.players, 0);
   const dealerIndex = 0;
@@ -724,7 +756,7 @@ export function createStartedRoomState(state: RoomState): RoomState {
 }
 
 export function advanceRoomState(state: RoomState): RoomState {
-  if (state.phase === "waiting" || state.phase === "showdown") {
+  if (state.phase === "waiting" || state.phase === "showdown" || state.phase === "between_hands") {
     throw new Error(`Cannot advance from phase=${state.phase}.`);
   }
 
@@ -736,7 +768,7 @@ export function advanceRoomState(state: RoomState): RoomState {
 }
 
 export function applyPlayerAction(state: RoomState, input: PlayerActionInput): RoomState {
-  if (state.phase === "waiting" || state.phase === "showdown") {
+  if (state.phase === "waiting" || state.phase === "showdown" || state.phase === "between_hands") {
     throw new Error("Player actions are only allowed during an active hand.");
   }
 

@@ -67,6 +67,10 @@ export function getRoomDescription(phase: AppState["room"] extends { phase: infe
     return "名前を決めて参加者を待ちます。2 人以上そろうとゲームを開始できます。";
   }
 
+  if (phase === "between_hands") {
+    return "前のハンド結果を確認中です。stack を引き継いで次のハンドを開始できます。";
+  }
+
   return "自分の手番ではアクションを選び、pot と場札、相手のベット状況を見ながら進行を確認します。";
 }
 

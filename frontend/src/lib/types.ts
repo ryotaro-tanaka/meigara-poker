@@ -24,7 +24,7 @@ export interface PublicPlayerState extends PlayerState {
   position: PublicPlayerPosition;
 }
 
-export type RoomPhase = "waiting" | "preflop" | "flop" | "turn" | "river" | "showdown";
+export type RoomPhase = "waiting" | "preflop" | "flop" | "turn" | "river" | "showdown" | "between_hands";
 export type PlayerActionType = "fold" | "check" | "call" | "bet" | "raise" | "all-in";
 
 export interface HandEvaluation {

@@ -4,7 +4,7 @@ interface PhaseTimelineProps {
   phase: RoomPhase | null;
 }
 
-const PHASES: RoomPhase[] = ["waiting", "preflop", "flop", "turn", "river", "showdown"];
+const PHASES: RoomPhase[] = ["waiting", "preflop", "flop", "turn", "river", "showdown", "between_hands"];
 
 export function PhaseTimeline({ phase }: PhaseTimelineProps) {
   const activeIndex = phase ? PHASES.indexOf(phase) : 0;
@@ -46,5 +46,7 @@ function describePhase(phase: RoomPhase): string {
       return "5 枚目の場札が公開されます。";
     case "showdown":
       return "役を比較して結果を表示します。";
+    case "between_hands":
+      return "結果を確認しながら次のハンド開始を待っています。";
   }
 }

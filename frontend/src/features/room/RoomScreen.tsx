@@ -70,7 +70,7 @@ export function RoomScreen({ state, shareUrl, onNameSubmit, onNameChange, onStar
       ) : (
         <section className="room-layout game-mode">
           <section className="room-main stack">
-            <GameScreen state={state} onPlayerAction={onPlayerAction} />
+            <GameScreen state={state} onPlayerAction={onPlayerAction} onStartGame={onStartGame} />
           </section>
           <aside className="room-side stack">
             <section className="panel stack">
