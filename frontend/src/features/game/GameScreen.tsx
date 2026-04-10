@@ -12,15 +12,17 @@ import type { AppState } from "../../state/app-state";
 interface GameScreenProps {
   state: AppState;
   onPlayerAction: (action: PlayerActionType, amount?: number) => void;
-  onStartGame: () => void;
+  onReadyChange: (ready: boolean) => void;
   onLeaveRoom: () => void;
   onAcknowledgeGameOver: () => void;
 }
 
-export function GameScreen({ state, onPlayerAction, onStartGame, onLeaveRoom, onAcknowledgeGameOver }: GameScreenProps) {
+export function GameScreen({ state, onPlayerAction, onReadyChange, onLeaveRoom, onAcknowledgeGameOver }: GameScreenProps) {
   const [amountValue, setAmountValue] = useState("4");
   const isBetweenHands = state.room?.phase === "between_hands";
   const isGameOver = Boolean(state.gameEnded);
+  const isReady = Boolean(state.playerId && state.readyPlayerIds.includes(state.playerId));
+  const readyCount = state.readyPlayerIds.length;
 
   return (
     <section className="stack">
@@ -37,10 +39,15 @@ export function GameScreen({ state, onPlayerAction, onStartGame, onLeaveRoom, on
                 <GameOverSummary standings={state.finalStandings} reason={state.gameOverReason} onAcknowledge={onAcknowledgeGameOver} />
               ) : (
                 <>
-                  <p className="hint-text">前のハンド結果を確認できます。準備ができたら次のハンドを開始してください。</p>
+                  <p className="hint-text">
+                    前のハンド結果を確認できます。継続プレイヤーの過半数が準備完了になると次のハンドが自動で始まります。
+                  </p>
+                  <p className="meta-text">
+                    ready {readyCount} / {state.requiredReadyCount}
+                  </p>
                   <div className="action-row">
-                    <button className="primary-button" onClick={onStartGame}>
-                      次のハンドを開始
+                    <button className="primary-button" onClick={() => onReadyChange(!isReady)}>
+                      {isReady ? "準備を解除" : "準備完了"}
                     </button>
                     <button className="ghost-button" onClick={onLeaveRoom}>
                       退出する

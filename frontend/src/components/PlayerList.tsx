@@ -5,9 +5,10 @@ interface PlayerListProps {
   players: PublicPlayerState[];
   selfPlayerId: string | null;
   showBettingInfo?: boolean;
+  readyPlayerIds?: string[];
 }
 
-export function PlayerList({ players, selfPlayerId, showBettingInfo = false }: PlayerListProps) {
+export function PlayerList({ players, selfPlayerId, showBettingInfo = false, readyPlayerIds = [] }: PlayerListProps) {
   return (
     <ul className="player-list">
       {players.map((player) => (
@@ -20,6 +21,7 @@ export function PlayerList({ players, selfPlayerId, showBettingInfo = false }: P
               <strong>{player.name || "名前未設定"}</strong>
               {player.playerId === selfPlayerId ? <span className="chip">あなた</span> : null}
               {getPositionBadgeLabel(player.position) ? <span className="chip neutral">{getPositionBadgeLabel(player.position)}</span> : null}
+              {readyPlayerIds.includes(player.playerId) ? <span className="chip neutral">Ready</span> : null}
             </div>
             {showBettingInfo ? (
               <div className="player-meta-grid">

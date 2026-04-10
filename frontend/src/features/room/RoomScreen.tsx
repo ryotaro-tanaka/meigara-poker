@@ -15,6 +15,7 @@ interface RoomScreenProps {
   onNameChange: (name: string) => void;
   onStartGame: () => void;
   onPlayerAction: (action: PlayerActionType, amount?: number) => void;
+  onReadyChange: (ready: boolean) => void;
   onLeaveRoom: () => void;
   onAcknowledgeGameOver: () => void;
 }
@@ -26,6 +27,7 @@ export function RoomScreen({
   onNameChange,
   onStartGame,
   onPlayerAction,
+  onReadyChange,
   onLeaveRoom,
   onAcknowledgeGameOver,
 }: RoomScreenProps) {
@@ -88,7 +90,7 @@ export function RoomScreen({
             <GameScreen
               state={state}
               onPlayerAction={onPlayerAction}
-              onStartGame={onStartGame}
+              onReadyChange={onReadyChange}
               onLeaveRoom={onLeaveRoom}
               onAcknowledgeGameOver={onAcknowledgeGameOver}
             />
@@ -99,7 +101,12 @@ export function RoomScreen({
                 <h2>参加者一覧</h2>
                 <StatusBadge status={state.connectionStatus} />
               </div>
-              <PlayerList players={state.room?.players ?? []} selfPlayerId={state.playerId} showBettingInfo />
+              <PlayerList
+                players={state.room?.players ?? []}
+                selfPlayerId={state.playerId}
+                showBettingInfo
+                readyPlayerIds={state.readyPlayerIds}
+              />
             </section>
             <SharePanel shareUrl={shareUrl} />
           </aside>

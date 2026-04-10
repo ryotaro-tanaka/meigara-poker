@@ -33,6 +33,8 @@ interface RoomSyncState {
   gameEnded: boolean;
   gameOverReason: GameOverReason | null;
   finalStandings: FinalStanding[];
+  readyPlayerIds: string[];
+  requiredReadyCount: number;
 }
 
 interface UiState {
@@ -90,6 +92,8 @@ function createInitialRoomSyncState(): RoomSyncState {
     gameEnded: false,
     gameOverReason: null,
     finalStandings: [],
+    readyPlayerIds: [],
+    requiredReadyCount: 0,
   };
 }
 
@@ -150,6 +154,8 @@ function applyRoomState(
     gameEnded: room.gameEnded,
     gameOverReason: room.gameOverReason,
     finalStandings: room.finalStandings,
+    readyPlayerIds: room.readyPlayerIds,
+    requiredReadyCount: room.requiredReadyCount,
     serverError: null,
   };
 }
@@ -174,6 +180,8 @@ function resetRoomScopedState(state: AppState, keepRoom: boolean): AppState {
         gameEnded: state.gameEnded,
         gameOverReason: state.gameOverReason,
         finalStandings: state.finalStandings,
+        readyPlayerIds: state.readyPlayerIds,
+        requiredReadyCount: state.requiredReadyCount,
       }
     : createInitialRoomSyncState();
 

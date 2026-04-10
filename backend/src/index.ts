@@ -5,8 +5,10 @@ import {
   createPlayerRoomState,
   createRoomSnapshot,
   createStartedRoomState,
+  isReadyThresholdMet,
   maybeFinalizeGame,
   removePlayerFromGame,
+  setPlayerReady,
   type PlayerActionType,
   type PlayerState,
   type RoomState,
@@ -17,7 +19,7 @@ interface RoomCreateRequest {
 }
 
 interface ClientEventBase {
-  type: "join_room" | "set_name" | "start_game" | "player_action" | "leave_room" | "acknowledge_game_over" | "ping";
+  type: "join_room" | "set_name" | "start_game" | "player_action" | "leave_room" | "acknowledge_game_over" | "set_ready" | "ping";
 }
 
 interface JoinRoomEvent extends ClientEventBase {
@@ -52,7 +54,20 @@ interface AcknowledgeGameOverEvent extends ClientEventBase {
   type: "acknowledge_game_over";
 }
 
-type ClientEvent = JoinRoomEvent | SetNameEvent | StartGameEvent | PlayerActionEvent | LeaveRoomEvent | AcknowledgeGameOverEvent | PingEvent;
+interface SetReadyEvent extends ClientEventBase {
+  type: "set_ready";
+  ready: boolean;
+}
+
+type ClientEvent =
+  | JoinRoomEvent
+  | SetNameEvent
+  | StartGameEvent
+  | PlayerActionEvent
+  | LeaveRoomEvent
+  | AcknowledgeGameOverEvent
+  | SetReadyEvent
+  | PingEvent;
 
 interface Env {
   DB: D1Database;
@@ -401,6 +416,10 @@ export class RoomDurableObject {
   }
 
   private async startGame(state: RoomState): Promise<RoomState> {
+    if (state.phase !== "waiting") {
+      throw new Error("start_game is only available from the waiting room.");
+    }
+
     if (state.gameEnded) {
       throw new Error("Return to the waiting room before starting a new game.");
     }
@@ -416,6 +435,31 @@ export class RoomDurableObject {
     const room = createRoomSnapshot(nextState);
     this.log("info", "game_started", {
       ...toLogContext(nextState),
+      mainPot: room.mainPot ? { amount: room.mainPot.amount } : null,
+      sidePots: room.sidePots.map((sidePot) => ({ amount: sidePot.amount })),
+      positions: room.positions,
+    });
+    this.broadcastGameStarted(nextState);
+    return nextState;
+  }
+
+  private async maybeStartReadyHand(state: RoomState): Promise<RoomState | null> {
+    if (state.phase !== "between_hands" || state.gameEnded || !isReadyThresholdMet(state)) {
+      return null;
+    }
+
+    const { deck, selectedIndustries } = await buildDeck(this.env.DB);
+    const nextState = createStartedRoomState({
+      ...state,
+      deck,
+      selectedIndustries,
+    });
+
+    await this.saveState(nextState);
+    const room = createRoomSnapshot(nextState);
+    this.log("info", "game_started", {
+      ...toLogContext(nextState),
+      reason: "majority_ready",
       mainPot: room.mainPot ? { amount: room.mainPot.amount } : null,
       sidePots: room.sidePots.map((sidePot) => ({ amount: sidePot.amount })),
       positions: room.positions,
@@ -531,6 +575,14 @@ export class RoomDurableObject {
     }
 
     if (payload.type === "start_game") {
+      if (state.phase !== "waiting") {
+        this.sendToPlayer(playerId, {
+          type: "error",
+          message: "Use ready between hands. start_game is only available from the waiting room.",
+        });
+        return;
+      }
+
       try {
         await this.startGame(state);
       } catch (error) {
@@ -547,6 +599,28 @@ export class RoomDurableObject {
       return;
     }
 
+    if (payload.type === "set_ready") {
+      try {
+        const nextState = setPlayerReady(state, playerId, payload.ready);
+        const startedState = await this.maybeStartReadyHand(nextState);
+
+        if (!startedState) {
+          await this.saveState(nextState);
+          this.log("info", "player_ready_updated", toLogContext(nextState, {
+            playerId,
+            reason: payload.ready ? "ready" : "not_ready",
+          }));
+          this.broadcastRoomState(nextState);
+        }
+      } catch (error) {
+        this.sendToPlayer(playerId, {
+          type: "error",
+          message: error instanceof Error ? error.message : "Failed to update ready state.",
+        });
+      }
+      return;
+    }
+
     if (payload.type === "leave_room") {
       const player = state.players.find((item) => item.playerId === playerId);
 
@@ -557,6 +631,12 @@ export class RoomDurableObject {
 
       player.connected = false;
       const nextState = maybeFinalizeGame(removePlayerFromGame(state, playerId, "left"));
+      const startedState = await this.maybeStartReadyHand(nextState);
+
+      if (startedState) {
+        return;
+      }
+
       await this.saveState(nextState);
       this.log("info", "player_left", toLogContext(nextState, { playerId }));
       this.broadcastSharedSnapshot("player_updated", nextState);
@@ -653,6 +733,7 @@ export class RoomDurableObject {
         gameEnded: false,
         gameOverReason: null,
         finalStandings: [],
+        readyPlayerIds: [],
       };
 
       await this.saveState(state);
@@ -764,6 +845,12 @@ export class RoomDurableObject {
 
             if (current.phase !== "waiting" || current.gameEnded) {
               nextState = maybeFinalizeGame(removePlayerFromGame(current, playerId, "disconnected"));
+            }
+
+            const startedState = await this.maybeStartReadyHand(nextState);
+
+            if (startedState) {
+              return;
             }
 
             await this.saveState(nextState);

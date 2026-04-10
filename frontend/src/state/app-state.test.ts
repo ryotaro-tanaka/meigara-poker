@@ -64,6 +64,8 @@ function createRoomSnapshot(): RoomSnapshot {
     gameEnded: false,
     gameOverReason: null,
     finalStandings: [],
+    readyPlayerIds: [],
+    requiredReadyCount: 0,
   };
 }
 
@@ -95,6 +97,8 @@ describe("appReducer", () => {
       gameEnded: room.gameEnded,
       gameOverReason: room.gameOverReason,
       finalStandings: room.finalStandings,
+      readyPlayerIds: room.readyPlayerIds,
+      requiredReadyCount: room.requiredReadyCount,
     };
 
     const next = appReducer(state, { type: "server_event_received", event });

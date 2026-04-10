@@ -9,6 +9,8 @@ import {
   createStartedRoomState,
   maybeFinalizeGame,
   removePlayerFromGame,
+  isReadyThresholdMet,
+  setPlayerReady,
   type PlayerState,
   type RoomState,
 } from "./game-progression";
@@ -84,6 +86,7 @@ function makeWaitingState(players = makePlayers(3)): RoomState {
     gameEnded: false,
     gameOverReason: null,
     finalStandings: [],
+    readyPlayerIds: [],
   };
 }
 
@@ -290,6 +293,7 @@ describe("game progression", () => {
       gameEnded: false,
       gameOverReason: null,
       finalStandings: [],
+      readyPlayerIds: [],
     };
 
     const showdown = applyPlayerAction(riverState, { playerId: "player-2", action: "check" });
@@ -357,6 +361,7 @@ describe("game progression", () => {
       gameEnded: false,
       gameOverReason: null,
       finalStandings: [],
+      readyPlayerIds: [],
     };
 
     const showdown = applyPlayerAction(riverState, { playerId: "player-3", action: "check" });
@@ -615,5 +620,36 @@ describe("game progression", () => {
     expect(acknowledged.finalStandings).toEqual([]);
     expect(acknowledged.players.map((player) => player.playerId)).toEqual(["player-1", "player-2"]);
     expect(acknowledged.results).toBeNull();
+  });
+
+  it("requires a majority of continuing players to be ready before the next hand starts", () => {
+    let state = createStartedRoomState(makeWaitingState(makePlayers(4)));
+    state.phase = "between_hands";
+    state.readyPlayerIds = [];
+
+    expect(isReadyThresholdMet(state)).toBe(false);
+
+    state = setPlayerReady(state, "player-1", true);
+    state = setPlayerReady(state, "player-2", true);
+    expect(state.readyPlayerIds).toEqual(["player-1", "player-2"]);
+    expect(isReadyThresholdMet(state)).toBe(false);
+
+    state = setPlayerReady(state, "player-3", true);
+    expect(isReadyThresholdMet(state)).toBe(true);
+    expect(createRoomSnapshot(state).requiredReadyCount).toBe(3);
+  });
+
+  it("drops ready players who leave and recalculates the majority threshold", () => {
+    let state = createStartedRoomState(makeWaitingState(makePlayers(3)));
+    state.phase = "between_hands";
+    state.readyPlayerIds = [];
+
+    state = setPlayerReady(state, "player-1", true);
+    state = setPlayerReady(state, "player-2", true);
+    expect(createRoomSnapshot(state).requiredReadyCount).toBe(2);
+
+    state = removePlayerFromGame(state, "player-3", "left");
+    expect(state.readyPlayerIds).toEqual(["player-1", "player-2"]);
+    expect(createRoomSnapshot(state).requiredReadyCount).toBe(2);
   });
 });

@@ -122,6 +122,7 @@ export interface RoomState {
   gameEnded: boolean;
   gameOverReason: GameOverReason | null;
   finalStandings: FinalStanding[];
+  readyPlayerIds: string[];
 }
 
 export interface RoomSnapshot {
@@ -145,6 +146,8 @@ export interface RoomSnapshot {
   gameEnded: boolean;
   gameOverReason: GameOverReason | null;
   finalStandings: FinalStanding[];
+  readyPlayerIds: string[];
+  requiredReadyCount: number;
 }
 
 export interface PlayerRoomState {
@@ -164,6 +167,8 @@ export interface PlayerRoomState {
   gameEnded: boolean;
   gameOverReason: GameOverReason | null;
   finalStandings: FinalStanding[];
+  readyPlayerIds: string[];
+  requiredReadyCount: number;
 }
 
 export interface PlayerActionInput {
@@ -231,6 +236,7 @@ function cloneState(state: RoomState): RoomState {
     gameEnded: state.gameEnded,
     gameOverReason: state.gameOverReason,
     finalStandings: state.finalStandings.map((standing) => ({ ...standing })),
+    readyPlayerIds: [...state.readyPlayerIds],
   };
 }
 
@@ -385,6 +391,16 @@ function getContinuingPlayerIds(state: RoomState): string[] {
   return state.players
     .map((player) => player.playerId)
     .filter((playerId) => !hasPlayerExited(state, playerId) && (state.stacks[playerId] ?? 0) > 0);
+}
+
+function getRequiredReadyCount(state: RoomState): number {
+  const continuingPlayerCount = getContinuingPlayerIds(state).length;
+
+  if (continuingPlayerCount < MIN_PLAYERS) {
+    return 0;
+  }
+
+  return Math.floor(continuingPlayerCount / 2) + 1;
 }
 
 function getFinalStandingStatus(state: RoomState, playerId: string): FinalStandingStatus {
@@ -584,6 +600,7 @@ function createBetweenHandsState(state: RoomState): RoomState {
   nextState.currentBet = 0;
   nextState.minRaise = BIG_BLIND;
   nextState.lastAggressorPlayerId = null;
+  nextState.readyPlayerIds = [];
   nextState.availableActions = Object.fromEntries(nextState.players.map((player) => [player.playerId, []]));
   nextState.actionState = { playersToAct: [] };
 
@@ -659,11 +676,41 @@ export function acknowledgeGameOver(state: RoomState): RoomState {
     gameEnded: false,
     gameOverReason: null,
     finalStandings: [],
+    readyPlayerIds: [],
   };
+}
+
+export function setPlayerReady(state: RoomState, playerId: string, ready: boolean): RoomState {
+  if (state.phase !== "between_hands") {
+    throw new Error("Ready state can only be changed between hands.");
+  }
+
+  if (state.gameEnded) {
+    throw new Error("Cannot change ready state after the game has ended.");
+  }
+
+  if (!getContinuingPlayerIds(state).includes(playerId)) {
+    throw new Error("Only continuing players can change ready state.");
+  }
+
+  const nextState = cloneState(state);
+  nextState.readyPlayerIds = nextState.readyPlayerIds.filter((candidate) => candidate !== playerId);
+
+  if (ready) {
+    nextState.readyPlayerIds.push(playerId);
+  }
+
+  return nextState;
+}
+
+export function isReadyThresholdMet(state: RoomState): boolean {
+  const requiredReadyCount = getRequiredReadyCount(state);
+  return requiredReadyCount > 0 && state.readyPlayerIds.length >= requiredReadyCount;
 }
 
 export function removePlayerFromGame(state: RoomState, playerId: string, reason: "left" | "disconnected"): RoomState {
   const nextState = cloneState(state);
+  nextState.readyPlayerIds = nextState.readyPlayerIds.filter((candidate) => candidate !== playerId);
 
   if (reason === "left" && !nextState.leftPlayerIds.includes(playerId)) {
     nextState.leftPlayerIds.push(playerId);
@@ -913,6 +960,8 @@ export function createRoomSnapshot(state: RoomState): RoomSnapshot {
     gameEnded: state.gameEnded,
     gameOverReason: state.gameOverReason,
     finalStandings: state.finalStandings,
+    readyPlayerIds: state.readyPlayerIds,
+    requiredReadyCount: getRequiredReadyCount(state),
   };
 }
 
@@ -937,6 +986,8 @@ export function createPlayerRoomState(state: RoomState, playerId: string): Playe
     gameEnded: state.gameEnded,
     gameOverReason: state.gameOverReason,
     finalStandings: state.finalStandings,
+    readyPlayerIds: state.readyPlayerIds,
+    requiredReadyCount: getRequiredReadyCount(state),
   };
 }
 
@@ -979,6 +1030,7 @@ export function createStartedRoomState(state: RoomState): RoomState {
     gameEnded: false,
     gameOverReason: null,
     finalStandings: [],
+    readyPlayerIds: [],
   };
 
   const smallBlindPlayerId = nextState.players[smallBlindIndex]?.playerId;

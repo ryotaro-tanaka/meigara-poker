@@ -119,6 +119,8 @@ export interface RoomSnapshot {
   gameEnded: boolean;
   gameOverReason: GameOverReason | null;
   finalStandings: FinalStanding[];
+  readyPlayerIds: string[];
+  requiredReadyCount: number;
 }
 
 export interface PlayerRoomState {
@@ -138,6 +140,8 @@ export interface PlayerRoomState {
   gameEnded: boolean;
   gameOverReason: GameOverReason | null;
   finalStandings: FinalStanding[];
+  readyPlayerIds: string[];
+  requiredReadyCount: number;
 }
 
 export interface CreateRoomResponse {
@@ -237,6 +241,10 @@ export type ClientEvent =
     }
   | {
       type: "acknowledge_game_over";
+    }
+  | {
+      type: "set_ready";
+      ready: boolean;
     }
   | {
       type: "ping";
