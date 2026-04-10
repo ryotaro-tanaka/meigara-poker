@@ -573,9 +573,10 @@ describe("game progression", () => {
 
     const finalized = maybeFinalizeGame(state);
 
-    expect(finalized.phase).toBe("waiting");
+    expect(finalized.phase).toBe("between_hands");
     expect(finalized.gameEnded).toBe(true);
     expect(finalized.gameOverReason).toBe("player_busted");
+    expect(finalized.results).not.toBeNull();
     expect(finalized.finalStandings).toEqual([
       expect.objectContaining({ rank: 1, playerId: "player-2", finalStack: 198, status: "active" }),
       expect.objectContaining({ rank: 2, playerId: "player-1", finalStack: 0, status: "busted" }),

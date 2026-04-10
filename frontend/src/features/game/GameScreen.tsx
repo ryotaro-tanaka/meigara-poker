@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { GameOverSummary } from "../../components/GameOverSummary";
 import { ActionPanel } from "../../components/ActionPanel";
 import { CardRow } from "../../components/CardRow";
 import { InfoPanel } from "../../components/InfoPanel";
@@ -13,11 +14,13 @@ interface GameScreenProps {
   onPlayerAction: (action: PlayerActionType, amount?: number) => void;
   onStartGame: () => void;
   onLeaveRoom: () => void;
+  onAcknowledgeGameOver: () => void;
 }
 
-export function GameScreen({ state, onPlayerAction, onStartGame, onLeaveRoom }: GameScreenProps) {
+export function GameScreen({ state, onPlayerAction, onStartGame, onLeaveRoom, onAcknowledgeGameOver }: GameScreenProps) {
   const [amountValue, setAmountValue] = useState("4");
   const isBetweenHands = state.room?.phase === "between_hands";
+  const isGameOver = Boolean(state.gameEnded);
 
   return (
     <section className="stack">
@@ -28,17 +31,23 @@ export function GameScreen({ state, onPlayerAction, onStartGame, onLeaveRoom }: 
           {isBetweenHands ? (
             <section className="panel stack">
               <div className="section-heading">
-                <h2>次ハンド待ち</h2>
+                <h2>{isGameOver ? "ゲーム終了" : "次ハンド待ち"}</h2>
               </div>
-              <p className="hint-text">前のハンド結果を確認できます。準備ができたら次のハンドを開始してください。</p>
-              <div className="action-row">
-                <button className="primary-button" onClick={onStartGame}>
-                  次のハンドを開始
-                </button>
-                <button className="ghost-button" onClick={onLeaveRoom}>
-                  退出する
-                </button>
-              </div>
+              {isGameOver ? (
+                <GameOverSummary standings={state.finalStandings} reason={state.gameOverReason} onAcknowledge={onAcknowledgeGameOver} />
+              ) : (
+                <>
+                  <p className="hint-text">前のハンド結果を確認できます。準備ができたら次のハンドを開始してください。</p>
+                  <div className="action-row">
+                    <button className="primary-button" onClick={onStartGame}>
+                      次のハンドを開始
+                    </button>
+                    <button className="ghost-button" onClick={onLeaveRoom}>
+                      退出する
+                    </button>
+                  </div>
+                </>
+              )}
             </section>
           ) : (
             <>

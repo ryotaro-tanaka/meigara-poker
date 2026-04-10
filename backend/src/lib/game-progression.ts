@@ -590,30 +590,9 @@ function createBetweenHandsState(state: RoomState): RoomState {
   return nextState;
 }
 
-function createWaitingStateAfterGameOver(state: RoomState, reason: GameOverReason): RoomState {
+function createGameOverState(state: RoomState, reason: GameOverReason): RoomState {
   const nextState = cloneState(state);
 
-  nextState.phase = "waiting";
-  nextState.deck = [];
-  nextState.selectedIndustries = [];
-  nextState.handsByPlayer = {};
-  nextState.board = [];
-  nextState.boardRevealCount = 0;
-  nextState.contributions = createEmptyMap(nextState.players, 0);
-  nextState.currentBets = createEmptyMap(nextState.players, 0);
-  nextState.pot = 0;
-  nextState.sidePots = [];
-  nextState.foldedPlayerIds = [];
-  nextState.allInPlayerIds = [];
-  nextState.dealerIndex = null;
-  nextState.smallBlindIndex = null;
-  nextState.bigBlindIndex = null;
-  nextState.currentTurnPlayerId = null;
-  nextState.currentBet = 0;
-  nextState.minRaise = BIG_BLIND;
-  nextState.lastAggressorPlayerId = null;
-  nextState.availableActions = Object.fromEntries(nextState.players.map((player) => [player.playerId, []]));
-  nextState.actionState = { playersToAct: [] };
   nextState.gameEnded = true;
   nextState.gameOverReason = reason;
   nextState.finalStandings = buildFinalStandings(nextState);
@@ -630,12 +609,12 @@ export function maybeFinalizeGame(state: RoomState): RoomState {
     const bustedPlayerExists = state.players.some((player) => !hasPlayerExited(state, player.playerId) && isPlayerEliminated(state, player.playerId));
 
     if (bustedPlayerExists) {
-      return createWaitingStateAfterGameOver(state, "player_busted");
+      return createGameOverState(state, "player_busted");
     }
-  }
 
-  if (getContinuingPlayerIds(state).length < MIN_PLAYERS) {
-    return createWaitingStateAfterGameOver(state, "insufficient_players");
+    if (getContinuingPlayerIds(state).length < MIN_PLAYERS) {
+      return createGameOverState(state, "insufficient_players");
+    }
   }
 
   return state;
