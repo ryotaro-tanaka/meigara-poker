@@ -4,6 +4,8 @@ import type {
   ConnectionStatus,
   CreateRoomResponse,
   DeckCard,
+  FinalStanding,
+  GameOverReason,
   GameResultSummary,
   MainPot,
   PlayerActionType,
@@ -28,6 +30,9 @@ interface RoomSyncState {
   positions: PlayerPositionMap;
   availableActions: PlayerActionType[];
   currentTurnPlayerId: string | null;
+  gameEnded: boolean;
+  gameOverReason: GameOverReason | null;
+  finalStandings: FinalStanding[];
 }
 
 interface UiState {
@@ -82,6 +87,9 @@ function createInitialRoomSyncState(): RoomSyncState {
     positions: EMPTY_POSITIONS,
     availableActions: [],
     currentTurnPlayerId: null,
+    gameEnded: false,
+    gameOverReason: null,
+    finalStandings: [],
   };
 }
 
@@ -139,6 +147,9 @@ function applyRoomState(
     positions: options?.positions ?? room.positions,
     availableActions: options?.availableActions ?? state.availableActions,
     currentTurnPlayerId: room.currentTurnPlayerId,
+    gameEnded: room.gameEnded,
+    gameOverReason: room.gameOverReason,
+    finalStandings: room.finalStandings,
     serverError: null,
   };
 }
@@ -160,6 +171,9 @@ function resetRoomScopedState(state: AppState, keepRoom: boolean): AppState {
         positions: state.positions,
         availableActions: state.availableActions,
         currentTurnPlayerId: state.currentTurnPlayerId,
+        gameEnded: state.gameEnded,
+        gameOverReason: state.gameOverReason,
+        finalStandings: state.finalStandings,
       }
     : createInitialRoomSyncState();
 

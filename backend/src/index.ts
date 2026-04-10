@@ -1,9 +1,12 @@
 import { buildDeck } from "./lib/deck";
 import {
+  acknowledgeGameOver,
   applyPlayerAction,
   createPlayerRoomState,
   createRoomSnapshot,
   createStartedRoomState,
+  maybeFinalizeGame,
+  removePlayerFromGame,
   type PlayerActionType,
   type PlayerState,
   type RoomState,
@@ -14,7 +17,7 @@ interface RoomCreateRequest {
 }
 
 interface ClientEventBase {
-  type: "join_room" | "set_name" | "start_game" | "player_action" | "ping";
+  type: "join_room" | "set_name" | "start_game" | "player_action" | "leave_room" | "acknowledge_game_over" | "ping";
 }
 
 interface JoinRoomEvent extends ClientEventBase {
@@ -41,7 +44,15 @@ interface PingEvent extends ClientEventBase {
   type: "ping";
 }
 
-type ClientEvent = JoinRoomEvent | SetNameEvent | StartGameEvent | PlayerActionEvent | PingEvent;
+interface LeaveRoomEvent extends ClientEventBase {
+  type: "leave_room";
+}
+
+interface AcknowledgeGameOverEvent extends ClientEventBase {
+  type: "acknowledge_game_over";
+}
+
+type ClientEvent = JoinRoomEvent | SetNameEvent | StartGameEvent | PlayerActionEvent | LeaveRoomEvent | AcknowledgeGameOverEvent | PingEvent;
 
 interface Env {
   DB: D1Database;
@@ -390,6 +401,10 @@ export class RoomDurableObject {
   }
 
   private async startGame(state: RoomState): Promise<RoomState> {
+    if (state.gameEnded) {
+      throw new Error("Return to the waiting room before starting a new game.");
+    }
+
     const { deck, selectedIndustries } = await buildDeck(this.env.DB);
     const nextState = createStartedRoomState({
       ...state,
@@ -422,44 +437,48 @@ export class RoomDurableObject {
       action: payload.action,
       amount: payload.amount,
     });
+    const finalState = maybeFinalizeGame(nextState);
 
-    await this.saveState(nextState);
-    this.log("info", "player_action_applied", toLogContext(nextState, {
+    await this.saveState(finalState);
+    this.log("info", "player_action_applied", toLogContext(finalState, {
       playerId,
       action: payload.action,
       amount: payload.amount ?? null,
     }));
-    this.broadcastActionApplied(nextState, playerId, payload.action, payload.amount);
+    this.broadcastActionApplied(finalState, playerId, payload.action, payload.amount);
 
-    if (nextState.phase !== previousPhase && nextState.phase !== "showdown" && nextState.phase !== "between_hands") {
-      this.log("info", "phase_advanced", toLogContext(nextState, {
-        transition: `${previousPhase} -> ${nextState.phase}`,
+    const handFinished = finalState.phase === "between_hands" && finalState.results !== null;
+
+    if (finalState.phase !== previousPhase && !handFinished && finalState.phase !== "showdown" && finalState.phase !== "between_hands") {
+      this.log("info", "phase_advanced", toLogContext(finalState, {
+        transition: `${previousPhase} -> ${finalState.phase}`,
       }));
-      this.broadcastPhaseAdvanced(nextState);
+      this.broadcastPhaseAdvanced(finalState);
     }
 
-    if (nextState.phase === "showdown") {
-      this.log("info", "hand_finished", toLogContext(nextState, {
-        transition: `${previousPhase} -> showdown`,
-        winners: nextState.results?.winners.map((winner) => winner.playerId) ?? [],
+    if (handFinished) {
+      this.log("info", "hand_finished", toLogContext(finalState, {
+        transition: `${previousPhase} -> between_hands`,
+        reason: finalState.gameOverReason ?? undefined,
+        winners: finalState.results?.winners.map((winner) => winner.playerId) ?? [],
         payouts:
-          nextState.results?.results.map((result) => ({
+          finalState.results?.results.map((result) => ({
             playerId: result.playerId,
             amountWon: result.amountWon,
           })) ?? [],
-        mainPot: nextState.results?.mainPot
+        mainPot: finalState.results?.mainPot
           ? {
-              amount: nextState.results.mainPot.amount,
-              winnerPlayerIds: nextState.results.mainPot.winnerPlayerIds,
+              amount: finalState.results.mainPot.amount,
+              winnerPlayerIds: finalState.results.mainPot.winnerPlayerIds,
             }
           : null,
         sidePots:
-          nextState.results?.sidePots.map((sidePot) => ({
+          finalState.results?.sidePots.map((sidePot) => ({
             amount: sidePot.amount,
             winnerPlayerIds: sidePot.winnerPlayerIds,
           })) ?? [],
       }));
-      this.broadcastGameResult(nextState);
+      this.broadcastGameResult(finalState);
     }
   }
 
@@ -525,6 +544,40 @@ export class RoomDurableObject {
         });
       }
 
+      return;
+    }
+
+    if (payload.type === "leave_room") {
+      const player = state.players.find((item) => item.playerId === playerId);
+
+      if (!player) {
+        this.sendToPlayer(playerId, { type: "error", message: "Player has not joined the room yet." });
+        return;
+      }
+
+      player.connected = false;
+      const nextState = maybeFinalizeGame(removePlayerFromGame(state, playerId, "left"));
+      await this.saveState(nextState);
+      this.log("info", "player_left", toLogContext(nextState, { playerId }));
+      this.broadcastSharedSnapshot("player_updated", nextState);
+      this.broadcastRoomState(nextState);
+      if (nextState.gameEnded) {
+        this.broadcastGameResult(nextState);
+      }
+      return;
+    }
+
+    if (payload.type === "acknowledge_game_over") {
+      if (!state.gameEnded) {
+        this.sendToPlayer(playerId, { type: "error", message: "The game is not over yet." });
+        return;
+      }
+
+      const nextState = acknowledgeGameOver(state);
+      await this.saveState(nextState);
+      this.log("info", "game_over_acknowledged", toLogContext(nextState, { playerId }));
+      this.broadcastSharedSnapshot("player_updated", nextState);
+      this.broadcastRoomState(nextState);
       return;
     }
 
@@ -595,6 +648,11 @@ export class RoomDurableObject {
         lastAggressorPlayerId: null,
         availableActions: {},
         actionState: { playersToAct: [] },
+        leftPlayerIds: [],
+        disconnectedPlayerIds: [],
+        gameEnded: false,
+        gameOverReason: null,
+        finalStandings: [],
       };
 
       await this.saveState(state);
@@ -702,10 +760,19 @@ export class RoomDurableObject {
 
           if (player) {
             player.connected = false;
-            await this.saveState(current);
-            this.log("info", "player_disconnected", toLogContext(current, { playerId }));
-            this.broadcastSharedSnapshot("player_updated", current);
-            this.broadcastRoomState(current);
+            let nextState = current;
+
+            if (current.phase !== "waiting" || current.gameEnded) {
+              nextState = maybeFinalizeGame(removePlayerFromGame(current, playerId, "disconnected"));
+            }
+
+            await this.saveState(nextState);
+            this.log("info", "player_disconnected", toLogContext(nextState, { playerId }));
+            this.broadcastSharedSnapshot("player_updated", nextState);
+            this.broadcastRoomState(nextState);
+            if (nextState.gameEnded) {
+              this.broadcastGameResult(nextState);
+            }
           }
         })();
       });

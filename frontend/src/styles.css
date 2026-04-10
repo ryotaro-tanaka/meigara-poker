@@ -174,7 +174,8 @@ button {
 }
 
 .primary-button,
-.secondary-button {
+.secondary-button,
+.ghost-button {
   padding: 12px 18px;
   border-radius: 999px;
   border: none;
@@ -192,15 +193,23 @@ button {
   color: #16304d;
 }
 
+.ghost-button {
+  border: 1px solid rgba(19, 32, 51, 0.12);
+  background: rgba(255, 255, 255, 0.78);
+  color: #16304d;
+}
+
 .primary-button:disabled,
-.secondary-button:disabled {
+.secondary-button:disabled,
+.ghost-button:disabled {
   opacity: 1;
   cursor: not-allowed;
   box-shadow: inset 0 0 0 1px rgba(19, 32, 51, 0.08);
 }
 
 .primary-button:hover:not(:disabled),
-.secondary-button:hover:not(:disabled) {
+.secondary-button:hover:not(:disabled),
+.ghost-button:hover:not(:disabled) {
   transform: translateY(-1px);
 }
 
@@ -254,7 +263,8 @@ button {
 }
 
 .player-list,
-.result-list {
+.result-list,
+.standing-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -264,7 +274,8 @@ button {
 }
 
 .player-item,
-.result-list li {
+.result-list li,
+.standing-item {
   display: flex;
   align-items: center;
   justify-content: space-between;

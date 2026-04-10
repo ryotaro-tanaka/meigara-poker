@@ -8,6 +8,17 @@ export interface PlayerState {
   connected: boolean;
 }
 
+export type FinalStandingStatus = "active" | "busted" | "left" | "disconnected";
+export type GameOverReason = "player_busted" | "insufficient_players";
+
+export interface FinalStanding {
+  rank: number;
+  playerId: string;
+  name: string;
+  finalStack: number;
+  status: FinalStandingStatus;
+}
+
 export type PublicPlayerPosition = "dealer" | "small_blind" | "big_blind" | null;
 
 export interface PublicPlayerState extends PlayerState {
@@ -18,6 +29,8 @@ export interface PublicPlayerState extends PlayerState {
   isAllIn: boolean;
   isCurrentTurn: boolean;
   position: PublicPlayerPosition;
+  hasLeft: boolean;
+  isEliminated: boolean;
 }
 
 export type RoomPhase = "waiting" | "preflop" | "flop" | "turn" | "river" | "showdown" | "between_hands";
@@ -104,6 +117,11 @@ export interface RoomState {
   lastAggressorPlayerId: string | null;
   availableActions: Record<string, PlayerActionType[]>;
   actionState: ActionState;
+  leftPlayerIds: string[];
+  disconnectedPlayerIds: string[];
+  gameEnded: boolean;
+  gameOverReason: GameOverReason | null;
+  finalStandings: FinalStanding[];
 }
 
 export interface RoomSnapshot {
@@ -124,6 +142,9 @@ export interface RoomSnapshot {
   currentBet: number;
   currentTurnPlayerId: string | null;
   positions: PlayerPositionMap;
+  gameEnded: boolean;
+  gameOverReason: GameOverReason | null;
+  finalStandings: FinalStanding[];
 }
 
 export interface PlayerRoomState {
@@ -140,6 +161,9 @@ export interface PlayerRoomState {
   pot: number;
   mainPot: MainPot | null;
   sidePots: SidePot[];
+  gameEnded: boolean;
+  gameOverReason: GameOverReason | null;
+  finalStandings: FinalStanding[];
 }
 
 export interface PlayerActionInput {
@@ -196,12 +220,17 @@ function cloneState(state: RoomState): RoomState {
     sidePots: state.sidePots.map((pot) => ({ ...pot, eligiblePlayerIds: [...pot.eligiblePlayerIds] })),
     foldedPlayerIds: [...state.foldedPlayerIds],
     allInPlayerIds: [...state.allInPlayerIds],
+    leftPlayerIds: [...state.leftPlayerIds],
+    disconnectedPlayerIds: [...state.disconnectedPlayerIds],
     availableActions: Object.fromEntries(
       Object.entries(state.availableActions).map(([playerId, actions]) => [playerId, [...actions]]),
     ),
     actionState: {
       playersToAct: [...state.actionState.playersToAct],
     },
+    gameEnded: state.gameEnded,
+    gameOverReason: state.gameOverReason,
+    finalStandings: state.finalStandings.map((standing) => ({ ...standing })),
   };
 }
 
@@ -262,7 +291,7 @@ function getPlayerIndex(state: RoomState, playerId: string): number {
 function getActivePlayerIds(state: RoomState): string[] {
   return state.players
     .map((player) => player.playerId)
-    .filter((playerId) => !state.foldedPlayerIds.includes(playerId));
+    .filter((playerId) => !state.foldedPlayerIds.includes(playerId) && !hasPlayerExited(state, playerId));
 }
 
 function getActiveNonAllInPlayerIds(state: RoomState): string[] {
@@ -275,7 +304,12 @@ function getOrderedActivePlayerIds(state: RoomState, startIndex: number): string
   for (let offset = 0; offset < state.players.length; offset += 1) {
     const player = state.players[(startIndex + offset) % state.players.length];
 
-    if (player && !state.foldedPlayerIds.includes(player.playerId) && !state.allInPlayerIds.includes(player.playerId)) {
+    if (
+      player &&
+      !state.foldedPlayerIds.includes(player.playerId) &&
+      !state.allInPlayerIds.includes(player.playerId) &&
+      !hasPlayerExited(state, player.playerId)
+    ) {
       ordered.push(player.playerId);
     }
   }
@@ -331,6 +365,75 @@ function getVisibleHand(state: RoomState, playerId: string): DeckCard[] {
   return state.handsByPlayer[playerId] ?? [];
 }
 
+function hasPlayerLeft(state: RoomState, playerId: string): boolean {
+  return state.leftPlayerIds.includes(playerId);
+}
+
+function hasPlayerDisconnected(state: RoomState, playerId: string): boolean {
+  return state.disconnectedPlayerIds.includes(playerId);
+}
+
+function hasPlayerExited(state: RoomState, playerId: string): boolean {
+  return hasPlayerLeft(state, playerId) || hasPlayerDisconnected(state, playerId);
+}
+
+function isPlayerEliminated(state: RoomState, playerId: string): boolean {
+  return (state.stacks[playerId] ?? 0) <= 0;
+}
+
+function getContinuingPlayerIds(state: RoomState): string[] {
+  return state.players
+    .map((player) => player.playerId)
+    .filter((playerId) => !hasPlayerExited(state, playerId) && (state.stacks[playerId] ?? 0) > 0);
+}
+
+function getFinalStandingStatus(state: RoomState, playerId: string): FinalStandingStatus {
+  if (hasPlayerDisconnected(state, playerId)) {
+    return "disconnected";
+  }
+
+  if (hasPlayerLeft(state, playerId)) {
+    return "left";
+  }
+
+  if (isPlayerEliminated(state, playerId)) {
+    return "busted";
+  }
+
+  return "active";
+}
+
+function buildFinalStandings(state: RoomState): FinalStanding[] {
+  return state.players
+    .map((player, index) => {
+      const status = getFinalStandingStatus(state, player.playerId);
+      const finalStack = status === "left" || status === "disconnected" ? 0 : state.stacks[player.playerId] ?? 0;
+
+      return {
+        index,
+        rank: 0,
+        playerId: player.playerId,
+        name: player.name,
+        finalStack,
+        status,
+      };
+    })
+    .sort((left, right) => {
+      if (right.finalStack !== left.finalStack) {
+        return right.finalStack - left.finalStack;
+      }
+
+      return left.index - right.index;
+    })
+    .map((standing, index) => ({
+      rank: index + 1,
+      playerId: standing.playerId,
+      name: standing.name,
+      finalStack: standing.finalStack,
+      status: standing.status,
+    }));
+}
+
 function getPlayerPosition(state: RoomState, playerId: string): PublicPlayerPosition {
   if (state.dealerIndex !== null && state.players[state.dealerIndex]?.playerId === playerId) {
     return "dealer";
@@ -357,6 +460,8 @@ function createPublicPlayerState(state: RoomState, player: PlayerState): PublicP
     isAllIn: state.allInPlayerIds.includes(player.playerId),
     isCurrentTurn: state.currentTurnPlayerId === player.playerId,
     position: getPlayerPosition(state, player.playerId),
+    hasLeft: hasPlayerExited(state, player.playerId),
+    isEliminated: isPlayerEliminated(state, player.playerId),
   };
 }
 
@@ -482,6 +587,133 @@ function createBetweenHandsState(state: RoomState): RoomState {
   nextState.availableActions = Object.fromEntries(nextState.players.map((player) => [player.playerId, []]));
   nextState.actionState = { playersToAct: [] };
 
+  return nextState;
+}
+
+function createWaitingStateAfterGameOver(state: RoomState, reason: GameOverReason): RoomState {
+  const nextState = cloneState(state);
+
+  nextState.phase = "waiting";
+  nextState.deck = [];
+  nextState.selectedIndustries = [];
+  nextState.handsByPlayer = {};
+  nextState.board = [];
+  nextState.boardRevealCount = 0;
+  nextState.contributions = createEmptyMap(nextState.players, 0);
+  nextState.currentBets = createEmptyMap(nextState.players, 0);
+  nextState.pot = 0;
+  nextState.sidePots = [];
+  nextState.foldedPlayerIds = [];
+  nextState.allInPlayerIds = [];
+  nextState.dealerIndex = null;
+  nextState.smallBlindIndex = null;
+  nextState.bigBlindIndex = null;
+  nextState.currentTurnPlayerId = null;
+  nextState.currentBet = 0;
+  nextState.minRaise = BIG_BLIND;
+  nextState.lastAggressorPlayerId = null;
+  nextState.availableActions = Object.fromEntries(nextState.players.map((player) => [player.playerId, []]));
+  nextState.actionState = { playersToAct: [] };
+  nextState.gameEnded = true;
+  nextState.gameOverReason = reason;
+  nextState.finalStandings = buildFinalStandings(nextState);
+
+  return nextState;
+}
+
+export function maybeFinalizeGame(state: RoomState): RoomState {
+  if (state.gameEnded) {
+    return state;
+  }
+
+  if (state.phase === "between_hands") {
+    const bustedPlayerExists = state.players.some((player) => !hasPlayerExited(state, player.playerId) && isPlayerEliminated(state, player.playerId));
+
+    if (bustedPlayerExists) {
+      return createWaitingStateAfterGameOver(state, "player_busted");
+    }
+  }
+
+  if (getContinuingPlayerIds(state).length < MIN_PLAYERS) {
+    return createWaitingStateAfterGameOver(state, "insufficient_players");
+  }
+
+  return state;
+}
+
+export function acknowledgeGameOver(state: RoomState): RoomState {
+  const nextPlayers = state.players
+    .filter((player) => !hasPlayerExited(state, player.playerId))
+    .map((player) => ({
+      ...player,
+      connected: true,
+    }));
+
+  return {
+    ...state,
+    players: nextPlayers,
+    phase: "waiting",
+    deck: [],
+    selectedIndustries: [],
+    handsByPlayer: {},
+    board: [],
+    boardRevealCount: 0,
+    results: null,
+    stacks: {},
+    contributions: {},
+    currentBets: {},
+    pot: 0,
+    sidePots: [],
+    foldedPlayerIds: [],
+    allInPlayerIds: [],
+    dealerIndex: null,
+    smallBlindIndex: null,
+    bigBlindIndex: null,
+    currentTurnPlayerId: null,
+    currentBet: 0,
+    minRaise: BIG_BLIND,
+    lastAggressorPlayerId: null,
+    availableActions: {},
+    actionState: { playersToAct: [] },
+    leftPlayerIds: [],
+    disconnectedPlayerIds: [],
+    gameEnded: false,
+    gameOverReason: null,
+    finalStandings: [],
+  };
+}
+
+export function removePlayerFromGame(state: RoomState, playerId: string, reason: "left" | "disconnected"): RoomState {
+  const nextState = cloneState(state);
+
+  if (reason === "left" && !nextState.leftPlayerIds.includes(playerId)) {
+    nextState.leftPlayerIds.push(playerId);
+  }
+
+  if (reason === "disconnected" && !nextState.disconnectedPlayerIds.includes(playerId)) {
+    nextState.disconnectedPlayerIds.push(playerId);
+  }
+
+  if (nextState.phase === "waiting" || nextState.phase === "between_hands") {
+    updateAvailableActions(nextState);
+    return nextState;
+  }
+
+  if (!nextState.foldedPlayerIds.includes(playerId)) {
+    nextState.foldedPlayerIds.push(playerId);
+  }
+
+  nextState.actionState.playersToAct = nextState.actionState.playersToAct.filter((candidate) => candidate !== playerId);
+
+  if (getActivePlayerIds(nextState).length === 1) {
+    return settleUncontestedWin(nextState, getActivePlayerIds(nextState)[0] as string);
+  }
+
+  if (nextState.actionState.playersToAct.length === 0) {
+    return advanceAfterCompletedRound(nextState);
+  }
+
+  updateAvailableActions(nextState);
   return nextState;
 }
 
@@ -699,6 +931,9 @@ export function createRoomSnapshot(state: RoomState): RoomSnapshot {
     currentBet: state.currentBet,
     currentTurnPlayerId: state.currentTurnPlayerId,
     positions: getPositions(state),
+    gameEnded: state.gameEnded,
+    gameOverReason: state.gameOverReason,
+    finalStandings: state.finalStandings,
   };
 }
 
@@ -720,6 +955,9 @@ export function createPlayerRoomState(state: RoomState, playerId: string): Playe
     pot: state.pot,
     mainPot,
     sidePots,
+    gameEnded: state.gameEnded,
+    gameOverReason: state.gameOverReason,
+    finalStandings: state.finalStandings,
   };
 }
 
@@ -759,6 +997,9 @@ export function createStartedRoomState(state: RoomState): RoomState {
     lastAggressorPlayerId: null,
     availableActions: {},
     actionState: { playersToAct: [] },
+    gameEnded: false,
+    gameOverReason: null,
+    finalStandings: [],
   };
 
   const smallBlindPlayerId = nextState.players[smallBlindIndex]?.playerId;

@@ -21,6 +21,8 @@ function createRoomSnapshot(): RoomSnapshot {
         isAllIn: false,
         isCurrentTurn: true,
         position: "dealer",
+        hasLeft: false,
+        isEliminated: false,
       },
       {
         playerId: "player-2",
@@ -34,6 +36,8 @@ function createRoomSnapshot(): RoomSnapshot {
         isAllIn: false,
         isCurrentTurn: false,
         position: "big_blind",
+        hasLeft: false,
+        isEliminated: false,
       },
     ],
     playerCount: 2,
@@ -57,6 +61,9 @@ function createRoomSnapshot(): RoomSnapshot {
       smallBlind: "player-1",
       bigBlind: "player-2",
     },
+    gameEnded: false,
+    gameOverReason: null,
+    finalStandings: [],
   };
 }
 
@@ -85,6 +92,9 @@ describe("appReducer", () => {
       pot: 40,
       mainPot: room.mainPot,
       sidePots: room.sidePots,
+      gameEnded: room.gameEnded,
+      gameOverReason: room.gameOverReason,
+      finalStandings: room.finalStandings,
     };
 
     const next = appReducer(state, { type: "server_event_received", event });

@@ -1,3 +1,4 @@
+import { GameOverSummary } from "../../components/GameOverSummary";
 import { LobbyPanel } from "../../components/LobbyPanel";
 import { PlayerList } from "../../components/PlayerList";
 import { RoomHeader } from "../../components/RoomHeader";
@@ -15,11 +16,23 @@ interface RoomScreenProps {
   onNameChange: (name: string) => void;
   onStartGame: () => void;
   onPlayerAction: (action: PlayerActionType, amount?: number) => void;
+  onLeaveRoom: () => void;
+  onAcknowledgeGameOver: () => void;
 }
 
-export function RoomScreen({ state, shareUrl, onNameSubmit, onNameChange, onStartGame, onPlayerAction }: RoomScreenProps) {
+export function RoomScreen({
+  state,
+  shareUrl,
+  onNameSubmit,
+  onNameChange,
+  onStartGame,
+  onPlayerAction,
+  onLeaveRoom,
+  onAcknowledgeGameOver,
+}: RoomScreenProps) {
   const phase = state.room?.phase ?? "waiting";
   const isWaiting = phase === "waiting";
+  const isGameOver = Boolean(state.gameEnded);
   const canStart = Boolean(state.room && state.room.playerCount >= 2 && isWaiting);
 
   return (
@@ -37,14 +50,18 @@ export function RoomScreen({ state, shareUrl, onNameSubmit, onNameChange, onStar
       {isWaiting ? (
         <section className="room-layout">
           <section className="room-main stack">
-            <LobbyPanel
-              playerName={state.playerName}
-              playerCount={state.room?.playerCount ?? 0}
-              canStart={canStart}
-              onNameChange={onNameChange}
-              onNameSubmit={onNameSubmit}
-              onStartGame={onStartGame}
-            />
+            {isGameOver ? (
+              <GameOverSummary standings={state.finalStandings} reason={state.gameOverReason} onAcknowledge={onAcknowledgeGameOver} />
+            ) : (
+              <LobbyPanel
+                playerName={state.playerName}
+                playerCount={state.room?.playerCount ?? 0}
+                canStart={canStart}
+                onNameChange={onNameChange}
+                onNameSubmit={onNameSubmit}
+                onStartGame={onStartGame}
+              />
+            )}
             <SharePanel shareUrl={shareUrl} />
           </section>
           <aside className="room-side stack">
@@ -57,20 +74,30 @@ export function RoomScreen({ state, shareUrl, onNameSubmit, onNameChange, onStar
             </section>
             <section className="panel stack">
               <div className="section-heading">
-                <h2>ルール</h2>
+                <h2>{isGameOver ? "最終順位" : "ルール"}</h2>
               </div>
-              <ul className="guide-list">
-                {getWaitingRuleItems().map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
+              {isGameOver ? (
+                <ol className="guide-list">
+                  {state.finalStandings.map((standing) => (
+                    <li key={standing.playerId}>
+                      {standing.rank}. {standing.name || "名前未設定"} / stack {standing.finalStack}
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <ul className="guide-list">
+                  {getWaitingRuleItems().map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              )}
             </section>
           </aside>
         </section>
       ) : (
         <section className="room-layout game-mode">
           <section className="room-main stack">
-            <GameScreen state={state} onPlayerAction={onPlayerAction} onStartGame={onStartGame} />
+            <GameScreen state={state} onPlayerAction={onPlayerAction} onStartGame={onStartGame} onLeaveRoom={onLeaveRoom} />
           </section>
           <aside className="room-side stack">
             <section className="panel stack">

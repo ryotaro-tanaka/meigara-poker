@@ -51,6 +51,8 @@ export function App() {
       onNameSubmit={() => sendEvent({ type: "set_name", name: state.playerName })}
       onStartGame={() => sendEvent({ type: "start_game" })}
       onPlayerAction={(action, amount) => sendEvent({ type: "player_action", action, amount })}
+      onLeaveRoom={() => sendEvent({ type: "leave_room" })}
+      onAcknowledgeGameOver={() => sendEvent({ type: "acknowledge_game_over" })}
     />
   );
 }

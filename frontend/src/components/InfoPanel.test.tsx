@@ -16,6 +16,8 @@ const players = [
     isAllIn: false,
     isCurrentTurn: true,
     position: "dealer" as const,
+    hasLeft: false,
+    isEliminated: false,
   },
   {
     playerId: "player-2",
@@ -29,6 +31,8 @@ const players = [
     isAllIn: false,
     isCurrentTurn: false,
     position: "big_blind" as const,
+    hasLeft: false,
+    isEliminated: false,
   },
 ];
 

@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import type { DeckCard } from "./deck";
 import {
+  acknowledgeGameOver,
   applyPlayerAction,
   createPlayerRoomState,
   createRoomSnapshot,
   createStartedRoomState,
+  maybeFinalizeGame,
+  removePlayerFromGame,
   type PlayerState,
   type RoomState,
 } from "./game-progression";
@@ -76,6 +79,11 @@ function makeWaitingState(players = makePlayers(3)): RoomState {
     lastAggressorPlayerId: null,
     availableActions: {},
     actionState: { playersToAct: [] },
+    leftPlayerIds: [],
+    disconnectedPlayerIds: [],
+    gameEnded: false,
+    gameOverReason: null,
+    finalStandings: [],
   };
 }
 
@@ -277,6 +285,11 @@ describe("game progression", () => {
         "player-2": ["check"],
       },
       actionState: { playersToAct: ["player-2"] },
+      leftPlayerIds: [],
+      disconnectedPlayerIds: [],
+      gameEnded: false,
+      gameOverReason: null,
+      finalStandings: [],
     };
 
     const showdown = applyPlayerAction(riverState, { playerId: "player-2", action: "check" });
@@ -339,6 +352,11 @@ describe("game progression", () => {
         "player-3": ["check"],
       },
       actionState: { playersToAct: ["player-3"] },
+      leftPlayerIds: [],
+      disconnectedPlayerIds: [],
+      gameEnded: false,
+      gameOverReason: null,
+      finalStandings: [],
     };
 
     const showdown = applyPlayerAction(riverState, { playerId: "player-3", action: "check" });
@@ -536,6 +554,65 @@ describe("game progression", () => {
     ]);
   });
 
-  it.todo("uses burn cards before flop, turn, and river just like standard holdem");
+  it("ends the whole game when a non-exited player reaches zero stack between hands", () => {
+    let state = createStartedRoomState(makeWaitingState(makePlayers(2)));
 
+    state.stacks["player-1"] = 0;
+    state.phase = "between_hands";
+    state.results = {
+      isDraw: false,
+      winners: [{ playerId: "player-2", evaluation: null, amountWon: 12 }],
+      results: [
+        { playerId: "player-1", evaluation: null, hand: [], amountWon: 0, finalStack: 0, folded: false },
+        { playerId: "player-2", evaluation: null, hand: [], amountWon: 12, finalStack: 212, folded: false },
+      ],
+      finalBoard: [],
+      mainPot: null,
+      sidePots: [],
+    };
+
+    const finalized = maybeFinalizeGame(state);
+
+    expect(finalized.phase).toBe("waiting");
+    expect(finalized.gameEnded).toBe(true);
+    expect(finalized.gameOverReason).toBe("player_busted");
+    expect(finalized.finalStandings).toEqual([
+      expect.objectContaining({ rank: 1, playerId: "player-2", finalStack: 198, status: "active" }),
+      expect.objectContaining({ rank: 2, playerId: "player-1", finalStack: 0, status: "busted" }),
+    ]);
+  });
+
+  it("includes left and disconnected players in final standings at zero stack", () => {
+    let state = createStartedRoomState(makeWaitingState(makePlayers(3)));
+    state.phase = "between_hands";
+    state.stacks = { "player-1": 120, "player-2": 80, "player-3": 60 };
+
+    state = removePlayerFromGame(state, "player-2", "left");
+    state = removePlayerFromGame(state, "player-3", "disconnected");
+    const finalized = maybeFinalizeGame(state);
+
+    expect(finalized.gameEnded).toBe(true);
+    expect(finalized.gameOverReason).toBe("insufficient_players");
+    expect(finalized.finalStandings).toEqual([
+      expect.objectContaining({ rank: 1, playerId: "player-1", finalStack: 120, status: "active" }),
+      expect.objectContaining({ rank: 2, playerId: "player-2", finalStack: 0, status: "left" }),
+      expect.objectContaining({ rank: 3, playerId: "player-3", finalStack: 0, status: "disconnected" }),
+    ]);
+  });
+
+  it("returns to plain waiting with remaining players after acknowledging game over", () => {
+    let state = createStartedRoomState(makeWaitingState(makePlayers(3)));
+    state.phase = "between_hands";
+    state.stacks = { "player-1": 120, "player-2": 0, "player-3": 60 };
+    state = removePlayerFromGame(state, "player-3", "left");
+    state = maybeFinalizeGame(state);
+
+    const acknowledged = acknowledgeGameOver(state);
+
+    expect(acknowledged.phase).toBe("waiting");
+    expect(acknowledged.gameEnded).toBe(false);
+    expect(acknowledged.finalStandings).toEqual([]);
+    expect(acknowledged.players.map((player) => player.playerId)).toEqual(["player-1", "player-2"]);
+    expect(acknowledged.results).toBeNull();
+  });
 });

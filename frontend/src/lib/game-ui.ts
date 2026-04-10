@@ -1,5 +1,15 @@
 import type { AppState } from "../state/app-state";
-import type { ConnectionStatus, MainPot, PlayerActionType, PlayerPositionMap, PublicPlayerPosition, PublicPlayerState, SidePot } from "./types";
+import type {
+  ConnectionStatus,
+  FinalStanding,
+  GameOverReason,
+  MainPot,
+  PlayerActionType,
+  PlayerPositionMap,
+  PublicPlayerPosition,
+  PublicPlayerState,
+  SidePot,
+} from "./types";
 
 export function resolvePlayerName(players: PublicPlayerState[], playerId: string | null, selfPlayerId?: string | null): string {
   if (!playerId) {
@@ -48,6 +58,8 @@ export function getPlayerStatusSummary(player: PublicPlayerState): string {
     player.isCurrentTurn ? "手番" : null,
     player.isFolded ? "fold" : null,
     player.isAllIn ? "all-in" : null,
+    player.isEliminated ? "busted" : null,
+    player.hasLeft ? "退出" : null,
     !player.connected ? "切断" : null,
   ].filter((value): value is string => Boolean(value));
 
@@ -72,6 +84,30 @@ export function getRoomDescription(phase: AppState["room"] extends { phase: infe
   }
 
   return "自分の手番ではアクションを選び、pot と場札、相手のベット状況を見ながら進行を確認します。";
+}
+
+export function getGameOverReasonLabel(reason: GameOverReason | null): string {
+  switch (reason) {
+    case "player_busted":
+      return "stack が 0 になったプレイヤーが出たため、このゲームを終了しました。";
+    case "insufficient_players":
+      return "継続できるプレイヤーが 2 人未満になったため、このゲームを終了しました。";
+    default:
+      return "このゲームは終了しました。順位を確認して待機画面に戻れます。";
+  }
+}
+
+export function getStandingStatusLabel(status: FinalStanding["status"]): string {
+  switch (status) {
+    case "active":
+      return "継続";
+    case "busted":
+      return "busted";
+    case "left":
+      return "退出";
+    case "disconnected":
+      return "切断";
+  }
 }
 
 export function getWaitingRuleItems(): string[] {

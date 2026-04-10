@@ -12,9 +12,10 @@ interface GameScreenProps {
   state: AppState;
   onPlayerAction: (action: PlayerActionType, amount?: number) => void;
   onStartGame: () => void;
+  onLeaveRoom: () => void;
 }
 
-export function GameScreen({ state, onPlayerAction, onStartGame }: GameScreenProps) {
+export function GameScreen({ state, onPlayerAction, onStartGame, onLeaveRoom }: GameScreenProps) {
   const [amountValue, setAmountValue] = useState("4");
   const isBetweenHands = state.room?.phase === "between_hands";
 
@@ -34,19 +35,29 @@ export function GameScreen({ state, onPlayerAction, onStartGame }: GameScreenPro
                 <button className="primary-button" onClick={onStartGame}>
                   次のハンドを開始
                 </button>
+                <button className="ghost-button" onClick={onLeaveRoom}>
+                  退出する
+                </button>
               </div>
             </section>
           ) : (
-            <ActionPanel
-              availableActions={state.availableActions}
-              toCall={state.toCall}
-              currentBet={state.room?.currentBet ?? 0}
-              isMyTurn={state.currentTurnPlayerId === state.playerId}
-              currentTurnLabel={getCurrentTurnLabel(state)}
-              amountValue={amountValue}
-              onAmountChange={setAmountValue}
-              onAction={onPlayerAction}
-            />
+            <>
+              <ActionPanel
+                availableActions={state.availableActions}
+                toCall={state.toCall}
+                currentBet={state.room?.currentBet ?? 0}
+                isMyTurn={state.currentTurnPlayerId === state.playerId}
+                currentTurnLabel={getCurrentTurnLabel(state)}
+                amountValue={amountValue}
+                onAmountChange={setAmountValue}
+                onAction={onPlayerAction}
+              />
+              <div className="action-row">
+                <button className="ghost-button" onClick={onLeaveRoom}>
+                  退出する
+                </button>
+              </div>
+            </>
           )}
           <ResultSummary results={state.results} players={state.room?.players ?? []} />
         </section>

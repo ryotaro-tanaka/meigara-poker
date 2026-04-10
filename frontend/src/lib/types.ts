@@ -12,6 +12,17 @@ export interface PlayerState {
   connected: boolean;
 }
 
+export type FinalStandingStatus = "active" | "busted" | "left" | "disconnected";
+export type GameOverReason = "player_busted" | "insufficient_players";
+
+export interface FinalStanding {
+  rank: number;
+  playerId: string;
+  name: string;
+  finalStack: number;
+  status: FinalStandingStatus;
+}
+
 export type PublicPlayerPosition = "dealer" | "small_blind" | "big_blind" | null;
 
 export interface PublicPlayerState extends PlayerState {
@@ -22,6 +33,8 @@ export interface PublicPlayerState extends PlayerState {
   isAllIn: boolean;
   isCurrentTurn: boolean;
   position: PublicPlayerPosition;
+  hasLeft: boolean;
+  isEliminated: boolean;
 }
 
 export type RoomPhase = "waiting" | "preflop" | "flop" | "turn" | "river" | "showdown" | "between_hands";
@@ -103,6 +116,9 @@ export interface RoomSnapshot {
   currentBet: number;
   currentTurnPlayerId: string | null;
   positions: PlayerPositionMap;
+  gameEnded: boolean;
+  gameOverReason: GameOverReason | null;
+  finalStandings: FinalStanding[];
 }
 
 export interface PlayerRoomState {
@@ -119,6 +135,9 @@ export interface PlayerRoomState {
   pot: number;
   mainPot: MainPot | null;
   sidePots: SidePot[];
+  gameEnded: boolean;
+  gameOverReason: GameOverReason | null;
+  finalStandings: FinalStanding[];
 }
 
 export interface CreateRoomResponse {
@@ -212,6 +231,12 @@ export type ClientEvent =
       type: "player_action";
       action: PlayerActionType;
       amount?: number;
+    }
+  | {
+      type: "leave_room";
+    }
+  | {
+      type: "acknowledge_game_over";
     }
   | {
       type: "ping";
