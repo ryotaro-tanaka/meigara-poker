@@ -8,45 +8,27 @@ afterEach(() => {
 });
 
 describe("ActionPanel", () => {
-  it("shows betting guidance for an unopened round", () => {
-    render(
-      <ActionPanel
-        availableActions={["fold", "check", "bet", "all-in"]}
-        toCall={0}
-        currentBet={0}
-        isMyTurn
-        currentTurnLabel="あなた"
-        amountValue="16"
-        onAmountChange={vi.fn()}
-        onAction={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText("今選べる操作: fold / check / bet / all-in")).toBeInTheDocument();
-    expect(screen.getByText("このラウンドはまだ誰も賭けていないので、最初の攻撃的アクションは bet です。")).toBeInTheDocument();
-    expect(screen.getByText("まだベットがないので raise は使えません。")).toBeInTheDocument();
-  });
-
-  it("disables actions that are not currently allowed", () => {
+  it("shows friendly participation controls", () => {
     render(
       <ActionPanel
         availableActions={["fold", "call", "raise", "all-in"]}
         toCall={8}
         currentBet={8}
+        myCurrentBet={0}
+        mainPot={{ amount: 40, eligiblePlayerIds: ["player-1", "player-2"] }}
         isMyTurn
         currentTurnLabel="あなた"
-        amountValue="16"
-        onAmountChange={vi.fn()}
         onAction={vi.fn()}
       />,
     );
 
-    expect(screen.getByRole("button", { name: "bet" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "check" })).toBeDisabled();
-    expect(screen.getByText("すでにベットがあるので、新しく bet する代わりに raise を使います。")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "降りる" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "参加 8" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "全額" })).toBeEnabled();
+    expect(screen.getByText("全員の参加額がそろうと次に進みます。")).toBeInTheDocument();
   });
 
-  it("submits bet and raise with the parsed final amount", () => {
+  it("renders fixed raise presets from the current round bet", () => {
     const onAction = vi.fn();
 
     render(
@@ -54,16 +36,39 @@ describe("ActionPanel", () => {
         availableActions={["fold", "call", "raise", "all-in"]}
         toCall={8}
         currentBet={8}
+        myCurrentBet={0}
+        mainPot={{ amount: 40, eligiblePlayerIds: ["player-1", "player-2"] }}
         isMyTurn
         currentTurnLabel="あなた"
-        amountValue="20"
-        onAmountChange={vi.fn()}
         onAction={onAction}
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "raise" }));
+    fireEvent.click(screen.getByRole("button", { name: "上乗せ 24" }));
 
-    expect(onAction).toHaveBeenCalledWith("raise", 20);
+    expect(screen.getByText("上乗せ候補: 現在の掛け金 8 を基準にしています。")).toBeInTheDocument();
+    expect(onAction).toHaveBeenCalledWith("raise", 24);
+  });
+
+  it("renders fixed bet presets from main pot", () => {
+    const onAction = vi.fn();
+
+    render(
+      <ActionPanel
+        availableActions={["fold", "check", "bet", "all-in"]}
+        toCall={0}
+        currentBet={0}
+        myCurrentBet={0}
+        mainPot={{ amount: 40, eligiblePlayerIds: ["player-1", "player-2"] }}
+        isMyTurn
+        currentTurnLabel="あなた"
+        onAction={onAction}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "上乗せ 20" }));
+
+    expect(screen.getByText("上乗せ候補: main pot 40 を基準にしています。")).toBeInTheDocument();
+    expect(onAction).toHaveBeenCalledWith("bet", 20);
   });
 });

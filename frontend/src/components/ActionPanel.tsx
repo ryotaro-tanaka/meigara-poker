@@ -1,15 +1,13 @@
-import { useId } from "react";
-import { getActionGuidance, getActionLabel, getActionSummary } from "../lib/game-ui";
-import type { PlayerActionType } from "../lib/types";
+import type { MainPot, PlayerActionType } from "../lib/types";
 
 interface ActionPanelProps {
   availableActions: PlayerActionType[];
   toCall: number;
   currentBet: number;
+  myCurrentBet: number;
+  mainPot: MainPot | null;
   isMyTurn: boolean;
   currentTurnLabel: string;
-  amountValue: string;
-  onAmountChange: (value: string) => void;
   onAction: (action: PlayerActionType, amount?: number) => void;
 }
 
@@ -17,53 +15,69 @@ export function ActionPanel({
   availableActions,
   toCall,
   currentBet,
+  myCurrentBet,
+  mainPot,
   isMyTurn,
   currentTurnLabel,
-  amountValue,
-  onAmountChange,
   onAction,
 }: ActionPanelProps) {
-  const amountId = useId();
-  const parsedAmount = Number.parseInt(amountValue, 10);
-  const amount = Number.isFinite(parsedAmount) ? parsedAmount : undefined;
-  const needsAmount = availableActions.includes("bet") || availableActions.includes("raise");
-  const guidance = getActionGuidance(availableActions, isMyTurn, currentBet, toCall);
+  const canParticipate = availableActions.includes("check") || availableActions.includes("call");
+  const canBet = availableActions.includes("bet");
+  const canRaise = availableActions.includes("raise");
+  const canAllIn = availableActions.includes("all-in");
+  const participationLabel = toCall > 0 ? `参加 ${toCall}` : "参加";
+  const raiseBase = currentBet > 0 ? currentBet : Math.max(2, toCall);
+  const betBase = Math.max(mainPot?.amount ?? 0, 1);
+  const betAmounts = [0.3, 0.5, 0.75].map((ratio) => Math.max(1, Math.ceil(betBase * ratio)));
+  const raiseAmounts = [2, 3, 4].map((multiplier) => Math.max(currentBet + 1, raiseBase * multiplier));
+  const presetAmounts = canBet ? betAmounts : canRaise ? raiseAmounts : [];
+  const presetAction: PlayerActionType | null = canBet ? "bet" : canRaise ? "raise" : null;
 
   return (
-    <section className="panel stack">
-      <div className="section-heading">
-        <h2>アクション</h2>
+    <section className="panel stack action-panel-mobile">
+      <div className="stack tight">
+        <div className="section-heading">
+          <h2>いまの操作</h2>
+        </div>
+        <p className="meta-text">現在の手番: {currentTurnLabel}</p>
+        <p className="hint-text">
+          {isMyTurn ? "全員の参加額がそろうと次に進みます。" : "いまは順番待ちです。手番が来ると操作できます。"}
+        </p>
       </div>
-      <p className="meta-text">現在の手番: {currentTurnLabel}</p>
-      <p className="hint-text">{getActionSummary(availableActions, isMyTurn)}</p>
-      {needsAmount ? (
-        <label className="field" htmlFor={amountId}>
-          <span>bet / raise の最終ベット額</span>
-          <input id={amountId} value={amountValue} onChange={(event) => onAmountChange(event.target.value)} inputMode="numeric" />
-          <span className="meta-text">現在ラウンド終了時の自分の合計 bet 額になるよう入力します。追加額ではありません。</span>
-        </label>
-      ) : null}
-      <div className="button-grid action-grid">
-        {(["fold", "check", "call", "bet", "raise", "all-in"] as PlayerActionType[]).map((action) => {
-          const enabled = availableActions.includes(action);
 
-          return (
-            <button
-              key={action}
-              className={`${action === "fold" ? "secondary-button" : "primary-button"}${enabled ? "" : " disabled-button"}`}
-              disabled={!enabled}
-              onClick={() => onAction(action, action === "bet" || action === "raise" ? amount : undefined)}
-            >
-              {getActionLabel(action, toCall)}
-            </button>
-          );
-        })}
+      <div className="button-grid action-grid">
+        <button className="secondary-button" disabled={!availableActions.includes("fold")} onClick={() => onAction("fold")}>
+          降りる
+        </button>
+        <button
+          className={`primary-button${canParticipate ? "" : " disabled-button"}`}
+          disabled={!canParticipate}
+          onClick={() => onAction(availableActions.includes("check") ? "check" : "call")}
+        >
+          {participationLabel}
+        </button>
+        <button className={`primary-button${canAllIn ? "" : " disabled-button"}`} disabled={!canAllIn} onClick={() => onAction("all-in")}>
+          全額
+        </button>
       </div>
-      <ul className="guide-list compact-list">
-        {guidance.map((line) => (
-          <li key={line}>{line}</li>
-        ))}
-      </ul>
+
+      {presetAction ? (
+        <section className="stack tight">
+          <p className="meta-text">
+            {presetAction === "bet"
+              ? `上乗せ候補: main pot ${mainPot?.amount ?? 0} を基準にしています。`
+              : `上乗せ候補: 現在の掛け金 ${raiseBase} を基準にしています。`}
+          </p>
+          <div className="button-grid action-grid">
+            {presetAmounts.map((amount) => (
+              <button key={`${presetAction}-${amount}`} className="primary-button" onClick={() => onAction(presetAction, amount)}>
+                上乗せ {amount}
+              </button>
+            ))}
+          </div>
+          <p className="meta-text">あなたの現在の bet: {myCurrentBet}</p>
+        </section>
+      ) : null}
     </section>
   );
 }

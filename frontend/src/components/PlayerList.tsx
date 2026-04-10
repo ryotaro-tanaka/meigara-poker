@@ -6,9 +6,16 @@ interface PlayerListProps {
   selfPlayerId: string | null;
   showBettingInfo?: boolean;
   readyPlayerIds?: string[];
+  compactGameView?: boolean;
 }
 
-export function PlayerList({ players, selfPlayerId, showBettingInfo = false, readyPlayerIds = [] }: PlayerListProps) {
+export function PlayerList({
+  players,
+  selfPlayerId,
+  showBettingInfo = false,
+  readyPlayerIds = [],
+  compactGameView = false,
+}: PlayerListProps) {
   return (
     <ul className="player-list">
       {players.map((player) => (
@@ -23,11 +30,17 @@ export function PlayerList({ players, selfPlayerId, showBettingInfo = false, rea
               {getPositionBadgeLabel(player.position) ? <span className="chip neutral">{getPositionBadgeLabel(player.position)}</span> : null}
               {readyPlayerIds.includes(player.playerId) ? <span className="chip neutral">Ready</span> : null}
             </div>
+            {compactGameView ? (
+              <div className="player-hole-cards" aria-label={`${player.name || "名前未設定"} の伏せカード`}>
+                <span className="mini-card" />
+                <span className="mini-card" />
+              </div>
+            ) : null}
             {showBettingInfo ? (
               <div className="player-meta-grid">
                 <span className="meta-text">stack {player.stack}</span>
                 <span className="meta-text">bet {player.currentBet}</span>
-                <span className="meta-text">投入 {player.totalContribution}</span>
+                {!compactGameView ? <span className="meta-text">投入 {player.totalContribution}</span> : null}
               </div>
             ) : null}
             {getPlayerStatusSummary(player) ? (

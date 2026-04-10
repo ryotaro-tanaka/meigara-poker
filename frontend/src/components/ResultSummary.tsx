@@ -8,20 +8,13 @@ interface ResultSummaryProps {
 
 export function ResultSummary({ results, players }: ResultSummaryProps) {
   if (!results) {
-    return (
-      <section className="panel stack">
-        <div className="section-heading">
-          <h2>結果</h2>
-        </div>
-        <p className="empty-state">結果はハンド終了後に表示されます。</p>
-      </section>
-    );
+    return null;
   }
 
   return (
     <section className="panel stack">
       <div className="section-heading">
-        <h2>結果</h2>
+        <h2>前ハンド結果</h2>
       </div>
       <p className="result-headline">
         {results.isDraw

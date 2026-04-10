@@ -1,6 +1,5 @@
 import { LobbyPanel } from "../../components/LobbyPanel";
 import { PlayerList } from "../../components/PlayerList";
-import { RoomHeader } from "../../components/RoomHeader";
 import { SharePanel } from "../../components/SharePanel";
 import { StatusBadge } from "../../components/StatusBadge";
 import { WaitingRoomSummary } from "../../components/WaitingRoomSummary";
@@ -84,43 +83,13 @@ export function RoomScreen({
           </section>
         </section>
       ) : (
-        <>
-          <RoomHeader
-            roomId={state.roomId}
-            roomName={state.room?.roomName ?? "ルームを読み込み中..."}
-            description={description}
-            status={state.connectionStatus}
-            phase={state.room?.phase ?? null}
-            playerCount={state.room?.playerCount ?? 0}
-            serverError={state.serverError}
-          />
-          <section className="room-layout game-mode">
-            <section className="room-main stack">
-              <GameScreen
-                state={state}
-                onPlayerAction={onPlayerAction}
-                onReadyChange={onReadyChange}
-                onLeaveRoom={onLeaveRoom}
-                onAcknowledgeGameOver={onAcknowledgeGameOver}
-              />
-            </section>
-            <aside className="room-side stack">
-              <section className="panel stack">
-                <div className="section-heading">
-                  <h2>参加者一覧</h2>
-                  <StatusBadge status={state.connectionStatus} />
-                </div>
-                <PlayerList
-                  players={state.room?.players ?? []}
-                  selfPlayerId={state.playerId}
-                  showBettingInfo
-                  readyPlayerIds={state.readyPlayerIds}
-                />
-              </section>
-              <SharePanel shareUrl={shareUrl} />
-            </aside>
-          </section>
-        </>
+        <GameScreen
+          state={state}
+          onPlayerAction={onPlayerAction}
+          onReadyChange={onReadyChange}
+          onLeaveRoom={onLeaveRoom}
+          onAcknowledgeGameOver={onAcknowledgeGameOver}
+        />
       )}
     </main>
   );

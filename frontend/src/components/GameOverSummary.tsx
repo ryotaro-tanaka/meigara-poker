@@ -30,7 +30,7 @@ export function GameOverSummary({ standings, reason, onAcknowledge }: GameOverSu
       </ol>
       <div className="action-row">
         <button className="primary-button" onClick={onAcknowledge}>
-          待機画面に戻る
+          待機画面へ戻る
         </button>
       </div>
     </section>
