@@ -69,6 +69,11 @@ interface RoomLogContext {
   winners?: string[];
   payouts?: Array<{ playerId: string; amountWon: number }>;
   sidePots?: Array<{ amount: number; winnerPlayerIds?: string[] }>;
+  positions?: {
+    dealer: string | null;
+    smallBlind: string | null;
+    bigBlind: string | null;
+  };
 }
 
 function json(data: unknown, init?: ResponseInit): Response {
@@ -398,6 +403,7 @@ export class RoomDurableObject {
       ...toLogContext(nextState),
       mainPot: room.mainPot ? { amount: room.mainPot.amount } : null,
       sidePots: room.sidePots.map((sidePot) => ({ amount: sidePot.amount })),
+      positions: room.positions,
     });
     this.broadcastGameStarted(nextState);
     return nextState;

@@ -70,6 +70,12 @@ export interface PlayerPositionMap {
   bigBlind: string | null;
 }
 
+interface HandPositions {
+  dealerIndex: number;
+  smallBlindIndex: number;
+  bigBlindIndex: number;
+}
+
 export interface RoomState {
   roomId: string;
   roomName: string;
@@ -279,6 +285,26 @@ function getOrderedActivePlayerIds(state: RoomState, startIndex: number): string
 
 function getNextIndex(playerCount: number, currentIndex: number): number {
   return (currentIndex + 1) % playerCount;
+}
+
+function getNextDealerIndex(state: RoomState): number {
+  if (state.phase === "waiting" || state.dealerIndex === null) {
+    return 0;
+  }
+
+  return getNextIndex(state.players.length, state.dealerIndex);
+}
+
+function getHandPositions(state: RoomState): HandPositions {
+  const dealerIndex = getNextDealerIndex(state);
+  const smallBlindIndex = state.players.length === 2 ? dealerIndex : getNextIndex(state.players.length, dealerIndex);
+  const bigBlindIndex = getNextIndex(state.players.length, smallBlindIndex);
+
+  return {
+    dealerIndex,
+    smallBlindIndex,
+    bigBlindIndex,
+  };
 }
 
 function getPositions(state: RoomState): PlayerPositionMap {
@@ -708,9 +734,7 @@ export function createStartedRoomState(state: RoomState): RoomState {
   const stacks = Object.fromEntries(state.players.map((player) => [player.playerId, state.stacks[player.playerId] ?? INITIAL_STACK]));
   const contributions = createEmptyMap(state.players, 0);
   const currentBets = createEmptyMap(state.players, 0);
-  const dealerIndex = 0;
-  const smallBlindIndex = state.players.length === 2 ? dealerIndex : getNextIndex(state.players.length, dealerIndex);
-  const bigBlindIndex = getNextIndex(state.players.length, smallBlindIndex);
+  const { dealerIndex, smallBlindIndex, bigBlindIndex } = getHandPositions(state);
 
   const nextState: RoomState = {
     ...state,

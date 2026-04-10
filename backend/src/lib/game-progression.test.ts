@@ -404,10 +404,92 @@ describe("game progression", () => {
     expect(restarted.results).toBeNull();
     expect(restarted.board).toHaveLength(5);
     expect(restarted.handsByPlayer["player-1"]).toHaveLength(2);
-    expect(restarted.stacks["player-1"]).toBe(previousStacks["player-1"]);
-    expect(restarted.stacks["player-2"]).toBe(previousStacks["player-2"] - 1);
-    expect(restarted.stacks["player-3"]).toBe(previousStacks["player-3"] - 2);
+    expect(restarted.dealerIndex).toBe(1);
+    expect(restarted.smallBlindIndex).toBe(2);
+    expect(restarted.bigBlindIndex).toBe(0);
+    expect(restarted.stacks["player-1"]).toBe(previousStacks["player-1"] - 2);
+    expect(restarted.stacks["player-2"]).toBe(previousStacks["player-2"]);
+    expect(restarted.stacks["player-3"]).toBe(previousStacks["player-3"] - 1);
     expect(restarted.pot).toBe(3);
+  });
+
+  it("rotates dealer, small blind, and big blind across consecutive three-player hands", () => {
+    let state = createStartedRoomState(makeWaitingState(makePlayers(3)));
+    expect(state.dealerIndex).toBe(0);
+    expect(state.smallBlindIndex).toBe(1);
+    expect(state.bigBlindIndex).toBe(2);
+    expect(state.currentTurnPlayerId).toBe("player-1");
+
+    state = applyPlayerAction(state, { playerId: "player-1", action: "fold" });
+    state = applyPlayerAction(state, { playerId: "player-2", action: "fold" });
+    expect(state.phase).toBe("between_hands");
+
+    state = createStartedRoomState({
+      ...state,
+      deck: makeDeck(),
+      selectedIndustries: ["情報・通信業", "建設業", "小売業", "銀行業"],
+    });
+    expect(state.dealerIndex).toBe(1);
+    expect(state.smallBlindIndex).toBe(2);
+    expect(state.bigBlindIndex).toBe(0);
+    expect(state.currentTurnPlayerId).toBe("player-2");
+
+    state = applyPlayerAction(state, { playerId: "player-2", action: "fold" });
+    state = applyPlayerAction(state, { playerId: "player-3", action: "fold" });
+    expect(state.phase).toBe("between_hands");
+
+    state = createStartedRoomState({
+      ...state,
+      deck: makeDeck(),
+      selectedIndustries: ["情報・通信業", "建設業", "小売業", "銀行業"],
+    });
+    expect(state.dealerIndex).toBe(2);
+    expect(state.smallBlindIndex).toBe(0);
+    expect(state.bigBlindIndex).toBe(1);
+    expect(state.currentTurnPlayerId).toBe("player-3");
+  });
+
+  it("rotates heads-up dealer and big blind while keeping holdem action order", () => {
+    let state = createStartedRoomState(makeWaitingState(makePlayers(2)));
+
+    expect(state.dealerIndex).toBe(0);
+    expect(state.smallBlindIndex).toBe(0);
+    expect(state.bigBlindIndex).toBe(1);
+    expect(state.currentTurnPlayerId).toBe("player-1");
+    expect(createRoomSnapshot(state).positions).toEqual({
+      dealer: "player-1",
+      smallBlind: "player-1",
+      bigBlind: "player-2",
+    });
+
+    state = applyPlayerAction(state, { playerId: "player-1", action: "call" });
+    state = applyPlayerAction(state, { playerId: "player-2", action: "check" });
+    expect(state.phase).toBe("flop");
+    expect(state.currentTurnPlayerId).toBe("player-2");
+
+    state = applyPlayerAction(state, { playerId: "player-2", action: "fold" });
+    expect(state.phase).toBe("between_hands");
+
+    state = createStartedRoomState({
+      ...state,
+      deck: makeDeck(),
+      selectedIndustries: ["情報・通信業", "建設業", "小売業", "銀行業"],
+    });
+
+    expect(state.dealerIndex).toBe(1);
+    expect(state.smallBlindIndex).toBe(1);
+    expect(state.bigBlindIndex).toBe(0);
+    expect(state.currentTurnPlayerId).toBe("player-2");
+    expect(createRoomSnapshot(state).positions).toEqual({
+      dealer: "player-2",
+      smallBlind: "player-2",
+      bigBlind: "player-1",
+    });
+
+    state = applyPlayerAction(state, { playerId: "player-2", action: "call" });
+    state = applyPlayerAction(state, { playerId: "player-1", action: "check" });
+    expect(state.phase).toBe("flop");
+    expect(state.currentTurnPlayerId).toBe("player-1");
   });
 
   it("restores the current phase and shared betting state through room snapshot", () => {
@@ -456,5 +538,4 @@ describe("game progression", () => {
 
   it.todo("uses burn cards before flop, turn, and river just like standard holdem");
 
-  it.todo("rotates dealer, small blind, and big blind across consecutive hands");
 });
