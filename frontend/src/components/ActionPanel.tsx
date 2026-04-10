@@ -25,13 +25,14 @@ export function ActionPanel({
   const canBet = availableActions.includes("bet");
   const canRaise = availableActions.includes("raise");
   const canAllIn = availableActions.includes("all-in");
+  const shouldPreferRaise = currentBet > 0 && canRaise;
   const participationLabel = toCall > 0 ? `参加 ${toCall}` : "参加";
   const raiseBase = currentBet > 0 ? currentBet : Math.max(2, toCall);
   const betBase = Math.max(mainPot?.amount ?? 0, 1);
   const betAmounts = [0.3, 0.5, 0.75].map((ratio) => Math.max(1, Math.ceil(betBase * ratio)));
   const raiseAmounts = [2, 3, 4].map((multiplier) => Math.max(currentBet + 1, raiseBase * multiplier));
-  const presetAmounts = canBet ? betAmounts : canRaise ? raiseAmounts : [];
-  const presetAction: PlayerActionType | null = canBet ? "bet" : canRaise ? "raise" : null;
+  const presetAction: PlayerActionType | null = shouldPreferRaise ? "raise" : canBet ? "bet" : canRaise ? "raise" : null;
+  const presetAmounts = presetAction === "bet" ? betAmounts : presetAction === "raise" ? raiseAmounts : [];
 
   return (
     <section className="panel stack action-panel-mobile">

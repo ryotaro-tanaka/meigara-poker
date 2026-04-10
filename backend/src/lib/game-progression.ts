@@ -557,7 +557,12 @@ function getAvailableActionsForPlayer(state: RoomState, playerId: string): Playe
     actions.push("check");
 
     if (stack > 0) {
-      actions.push("bet", "all-in");
+      if (state.currentBet === 0) {
+        actions.push("bet");
+      } else if (stack + (state.currentBets[playerId] ?? 0) > state.currentBet) {
+        actions.push("raise");
+      }
+      actions.push("all-in");
     }
 
     return actions;
@@ -1129,8 +1134,8 @@ export function applyPlayerAction(state: RoomState, input: PlayerActionInput): R
       break;
     }
     case "raise": {
-      if (toCall <= 0) {
-        throw new Error("Cannot raise when there is nothing to call.");
+      if (nextState.currentBet === 0) {
+        throw new Error("Cannot raise before betting starts. Use bet instead.");
       }
 
       const targetBet = assertAmountProvided(input.amount, "raise");

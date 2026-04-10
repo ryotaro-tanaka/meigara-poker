@@ -150,7 +150,7 @@ describe("game progression", () => {
     expect(state.boardRevealCount).toBe(5);
   });
 
-  it.fails("keeps the big blind option on preflop after other players only call", () => {
+  it("keeps the big blind option on preflop after other players only call", () => {
     let state = createStartedRoomState(makeWaitingState());
 
     state = applyPlayerAction(state, { playerId: "player-1", action: "call" });
@@ -159,6 +159,21 @@ describe("game progression", () => {
     expect(state.phase).toBe("preflop");
     expect(state.currentTurnPlayerId).toBe("player-3");
     expect(state.availableActions["player-3"]).toEqual(["fold", "check", "raise", "all-in"]);
+  });
+
+  it("keeps heads-up big blind raise option after small blind calls", () => {
+    let state = createStartedRoomState(makeWaitingState(makePlayers(2)));
+
+    expect(state.currentTurnPlayerId).toBe("player-1");
+    state = applyPlayerAction(state, { playerId: "player-1", action: "call" });
+
+    expect(state.currentTurnPlayerId).toBe("player-2");
+    expect(state.currentBet).toBe(2);
+    expect(state.availableActions["player-2"]).toEqual(["fold", "check", "raise", "all-in"]);
+
+    state = applyPlayerAction(state, { playerId: "player-2", action: "raise", amount: 6 });
+    expect(state.currentBet).toBe(6);
+    expect(state.currentTurnPlayerId).toBe("player-1");
   });
 
   it("uses heads-up action order that matches holdem streets", () => {
