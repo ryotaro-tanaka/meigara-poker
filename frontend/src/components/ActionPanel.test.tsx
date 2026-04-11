@@ -25,7 +25,7 @@ describe("ActionPanel", () => {
     expect(screen.getByRole("button", { name: "降りる" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "賭ける (8)" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "All-in" })).not.toBeInTheDocument();
-    expect(screen.getByText("全員の参加額がそろうと次に進みます。")).toBeInTheDocument();
+    expect(screen.queryByText("全員の参加額がそろうと次に進みます。")).not.toBeInTheDocument();
   });
 
   it("opens second step and sends selected raise amount", () => {
@@ -74,6 +74,27 @@ describe("ActionPanel", () => {
     expect(onAction).toHaveBeenCalledWith("bet", 20);
   });
 
+  it("hides unavailable action candidates in second step", () => {
+    render(
+      <ActionPanel
+        availableActions={["fold", "call"]}
+        toCall={6}
+        currentBet={6}
+        myCurrentBet={0}
+        mainPot={{ amount: 40, eligiblePlayerIds: ["player-1", "player-2"] }}
+        isMyTurn
+        currentTurnLabel="あなた"
+        onAction={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "賭ける (6)" }));
+
+    expect(screen.getByRole("button", { name: "参加 6" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "All-in" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "12" })).not.toBeInTheDocument();
+  });
+
   it("shows collapsed state when it is not my turn", () => {
     render(
       <ActionPanel
@@ -88,7 +109,7 @@ describe("ActionPanel", () => {
       />,
     );
 
-    expect(screen.getByText("いまは順番待ちです。手番が来ると操作できます。")).toBeInTheDocument();
+    expect(screen.getByText("現在の手番: Bob")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "降りる" })).not.toBeInTheDocument();
   });
 });

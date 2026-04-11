@@ -1,4 +1,3 @@
-import { LobbyPanel } from "../../components/LobbyPanel";
 import { PlayerList } from "../../components/PlayerList";
 import { SharePanel } from "../../components/SharePanel";
 import { StatusBadge } from "../../components/StatusBadge";
@@ -31,6 +30,9 @@ export function RoomScreen({
   const phase = state.room?.phase ?? "waiting";
   const isWaiting = phase === "waiting";
   const canStart = Boolean(state.room && state.room.playerCount >= 2 && isWaiting);
+  const players = (state.room?.players ?? []).map((player) =>
+    player.playerId === state.playerId ? { ...player, name: state.playerName || player.name } : player,
+  );
 
   return (
     <main className="app-shell">
@@ -41,41 +43,49 @@ export function RoomScreen({
             <section className="room-main stack">
               <section className="panel stack">
                 <div className="section-heading">
-                  <h1 className="waiting-summary-title">{state.room?.roomName ?? "ルームを読み込み中..."}</h1>
+                  <h2>参加者一覧</h2>
                   <StatusBadge status={state.connectionStatus} />
                 </div>
-                <SharePanel shareUrl={shareUrl} />
-              </section>
-              <section className="panel stack">
+                <h1 className="waiting-summary-title">{state.room?.roomName ?? "ルームを読み込み中..."}</h1>
                 <PlayerList
-                  players={state.room?.players ?? []}
+                  players={players}
                   selfPlayerId={state.playerId}
                   totalSlots={6}
                   hideEliminatedStatus
+                  editableSelfName
+                  onSelfNameChange={onNameChange}
                 />
-                <LobbyPanel
-                  playersTitle="参加者"
-                  playerName={state.playerName}
-                  playerCount={state.room?.playerCount ?? 0}
-                  canStart={canStart}
-                  onNameChange={onNameChange}
-                  onStartGame={onStartGame}
-                />
+                <div className="action-row">
+                  <button className="primary-button" onClick={onStartGame} disabled={!canStart}>
+                    ゲーム開始
+                  </button>
+                </div>
+                <p className="meta-text">2 人以上で開始できます。現在 {state.room?.playerCount ?? 0}/6 人。</p>
+                {!canStart ? <p className="hint-text">開始ボタンは 2 人以上そろうと押せます。</p> : null}
+              </section>
+              <section className="panel stack">
+                <div className="section-heading">
+                  <h2>招待リンク</h2>
+                </div>
+                <SharePanel shareUrl={shareUrl} />
               </section>
               <section className="panel stack">
                 <div className="section-heading">
                   <h2>ルール</h2>
                 </div>
-                <ul className="guide-list compact-list">
-                  {getWaitingRuleItems().map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-                <ul className="guide-list compact-list">
-                  {getWaitingHandRankItems().map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
+                <p className="meta-text">{getWaitingRuleItems()[0]}</p>
+                <p className="meta-text">{getWaitingRuleItems()[1]}</p>
+                <section className="rule-card-grid">
+                  {getWaitingHandRankItems().map((item) => {
+                    const [name, example] = item.split(":");
+                    return (
+                      <article key={item} className="rule-card">
+                        <strong>{name}</strong>
+                        <p className="meta-text">{example?.trim() ?? ""}</p>
+                      </article>
+                    );
+                  })}
+                </section>
               </section>
             </section>
           </section>

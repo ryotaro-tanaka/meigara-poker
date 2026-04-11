@@ -51,7 +51,6 @@ export function ActionPanel({
             <h2>いまの操作</h2>
           </div>
           <p className="meta-text">現在の手番: {currentTurnLabel}</p>
-          <p className="hint-text">いまは順番待ちです。手番が来ると操作できます。</p>
         </div>
       </section>
     );
@@ -64,16 +63,15 @@ export function ActionPanel({
           <h2>いまの操作</h2>
         </div>
         <p className="meta-text">現在の手番: {currentTurnLabel}</p>
-        <p className="hint-text">全員の参加額がそろうと次に進みます。</p>
       </div>
 
       {step === "initial" ? (
         <div className="button-grid action-grid">
-          <button className="secondary-button" disabled={!availableActions.includes("fold")} onClick={() => onAction("fold")}>
+          <button className="secondary-button" onClick={() => onAction("fold")}>
             降りる
           </button>
           <button
-            className={`primary-button${canBettingFlow ? "" : " disabled-button"}`}
+            className="secondary-button"
             disabled={!canBettingFlow}
             onClick={() => setStep("betting")}
           >
@@ -82,38 +80,31 @@ export function ActionPanel({
         </div>
       ) : (
         <section className="stack tight">
-          <p className="meta-text">候補を選んで賭けます。最低参加費は {minimumParticipation} です。</p>
           <div className="button-grid action-grid">
-            <button
-              className={`primary-button${canParticipate ? "" : " disabled-button"}`}
-              disabled={!canParticipate}
-              onClick={() => onAction(availableActions.includes("check") ? "check" : "call")}
-            >
-              参加 {minimumParticipation}
-            </button>
-            {raiseAmounts.map((amount) => (
-              <button
-                key={`raise-${amount}`}
-                className={`secondary-button${canRaise ? "" : " disabled-button"}`}
-                disabled={!canRaise}
-                onClick={() => onAction("raise", amount)}
-              >
-                {amount}
+            {canParticipate ? (
+              <button className="secondary-button" onClick={() => onAction(availableActions.includes("check") ? "check" : "call")}>
+                参加 {minimumParticipation}
               </button>
-            ))}
-            {betAmounts.map((amount) => (
-              <button
-                key={`bet-${amount}`}
-                className={`secondary-button${canBet ? "" : " disabled-button"}`}
-                disabled={!canBet}
-                onClick={() => onAction("bet", amount)}
-              >
-                {amount}
+            ) : null}
+            {canRaise
+              ? raiseAmounts.map((amount) => (
+                  <button key={`raise-${amount}`} className="secondary-button" onClick={() => onAction("raise", amount)}>
+                    {amount}
+                  </button>
+                ))
+              : null}
+            {canBet
+              ? betAmounts.map((amount) => (
+                  <button key={`bet-${amount}`} className="secondary-button" onClick={() => onAction("bet", amount)}>
+                    {amount}
+                  </button>
+                ))
+              : null}
+            {canAllIn ? (
+              <button className="secondary-button" onClick={() => onAction("all-in")}>
+                All-in
               </button>
-            ))}
-            <button className={`primary-button${canAllIn ? "" : " disabled-button"}`} disabled={!canAllIn} onClick={() => onAction("all-in")}>
-              All-in
-            </button>
+            ) : null}
           </div>
           <button className="ghost-button" onClick={() => setStep("initial")}>
             戻る

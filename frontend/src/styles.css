@@ -261,6 +261,46 @@ button {
   border: 1px solid rgba(19, 32, 51, 0.08);
 }
 
+.card-suit-colored {
+  font-weight: 800;
+}
+
+.card-suit-it {
+  border-color: rgba(42, 99, 214, 0.24);
+}
+
+.card-suit-it .card-suit-colored {
+  color: #2358b8;
+}
+
+.card-suit-construction {
+  border-color: rgba(201, 109, 38, 0.24);
+}
+
+.card-suit-construction .card-suit-colored {
+  color: #a44a12;
+}
+
+.card-suit-retail {
+  border-color: rgba(173, 45, 92, 0.24);
+}
+
+.card-suit-retail .card-suit-colored {
+  color: #a02a54;
+}
+
+.card-suit-bank {
+  border-color: rgba(27, 123, 82, 0.24);
+}
+
+.card-suit-bank .card-suit-colored {
+  color: #13624a;
+}
+
+.card-suit-default .card-suit-colored {
+  color: #3f556f;
+}
+
 .card-item h3 {
   margin: 0 0 6px;
   font-size: 40px;
@@ -325,6 +365,52 @@ button {
   border-style: dashed;
   border-color: rgba(19, 32, 51, 0.18);
   background: rgba(240, 245, 248, 0.56);
+}
+
+.player-name-inline-input {
+  min-width: 0;
+  width: min(220px, 100%);
+  padding: 6px 10px;
+  border: 1px solid rgba(19, 32, 51, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  font-weight: 700;
+  color: #16304d;
+}
+
+.skeleton-line {
+  display: inline-block;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(130, 146, 166, 0.16), rgba(130, 146, 166, 0.36), rgba(130, 146, 166, 0.16));
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+.skeleton-line-name {
+  width: 110px;
+  height: 14px;
+}
+
+.player-item-empty .player-meta-grid {
+  grid-template-columns: repeat(2, minmax(80px, 1fr));
+}
+
+.player-item-empty .skeleton-line {
+  width: 90px;
+}
+
+.rule-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.rule-card {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(19, 32, 51, 0.1);
+  background: rgba(240, 245, 248, 0.72);
 }
 
 .player-item-active {
@@ -557,6 +643,15 @@ button {
 .round-chip-active {
   background: rgba(29, 119, 107, 0.2);
   color: #145f55;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
 }
 
 @media (max-width: 720px) {

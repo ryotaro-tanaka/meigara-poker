@@ -24,7 +24,6 @@ export function CreateRoomScreen({ defaultRoomName, isSubmitting, error, onSubmi
           <div className="section-heading">
             <h2>部屋作成</h2>
           </div>
-          <p className="meta-text">部屋名を決めると、そのまま待機画面へ進みます。</p>
           <label className="field">
             <span>部屋名</span>
             <input

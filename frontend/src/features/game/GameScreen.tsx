@@ -56,7 +56,7 @@ export function GameScreen({ state, onPlayerAction, onReadyChange, onLeaveRoom, 
         </>
       ) : (
         <>
-          <section className="panel stack game-round-summary">
+          <section className="panel stack">
             <div className="hero-topline">
               <p className="eyebrow">Round</p>
             </div>
@@ -74,32 +74,35 @@ export function GameScreen({ state, onPlayerAction, onReadyChange, onLeaveRoom, 
             </div>
           </section>
 
-          <CardRow cards={state.board} hiddenCount={hiddenBoardCount} title="場札" emptyLabel="まだ公開されていません。" />
-          <CardRow cards={state.hand} title="自分の手札" emptyLabel="配布待ちです。" />
+          <section className="panel stack">
+            <CardRow cards={state.board} hiddenCount={hiddenBoardCount} title="テーブル" emptyLabel="まだ公開されていません。" />
+            <div className="info-grid">
+              <p className="meta-text">総賭け金: {state.mainPot?.amount ?? state.pot}</p>
+              <p className="meta-text">必要コスト: {state.toCall}</p>
+            </div>
+          </section>
 
           <section className="panel stack">
-            <div className="section-heading">
-              <h2>いま必要な情報</h2>
-            </div>
+            <CardRow cards={state.hand} title="ハンド" emptyLabel="配布待ちです。" />
             <div className="info-grid">
-              <p className="meta-text">main pot: {state.mainPot?.amount ?? state.pot}</p>
-              <p className="meta-text">コール必要額: {state.toCall}</p>
-              <p className="meta-text">現在の手番: {currentTurnLabel}</p>
-              <p className="meta-text">あなたの stack: {state.myStack}</p>
+              <p className="meta-text">持ち点: {state.myStack}</p>
             </div>
           </section>
 
           <section className="panel stack">
             <div className="section-heading">
-              <h2>参加者</h2>
+              <h2>プレイヤー状況</h2>
             </div>
             <PlayerList players={state.room?.players ?? []} selfPlayerId={state.playerId} showBettingInfo compactGameView={false} />
+            <div className="info-grid">
+              <p className="meta-text">現在の手番: {currentTurnLabel}</p>
+              <p className="meta-text">必要コスト: {state.toCall}</p>
+              <p className="meta-text">総賭け金: {state.mainPot?.amount ?? state.pot}</p>
+            </div>
+            {state.lastActionMessage ? <p className="meta-text">{state.lastActionMessage}</p> : null}
           </section>
 
-          {state.lastActionMessage ? <p className="hint-text">{state.lastActionMessage}</p> : null}
-
           <div className="game-action-sticky">
-            {!isMyTurn ? <p className="meta-text">順番待ちです。手番: {currentTurnLabel}</p> : null}
             <ActionPanel
               availableActions={state.availableActions}
               toCall={state.toCall}

@@ -114,11 +114,11 @@ describe("GameScreen", () => {
     );
 
     expect(screen.getByText("場札 3")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "自分の手札" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "場札" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "参加者" })).toBeInTheDocument();
-    expect(screen.getByText("main pot: 40")).toBeInTheDocument();
-    expect(screen.getByText("コール必要額: 0")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "テーブル" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "ハンド" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "プレイヤー状況" })).toBeInTheDocument();
+    expect(screen.getAllByText("総賭け金: 40").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("必要コスト: 0").length).toBeGreaterThan(0);
     expect(screen.queryByRole("heading", { name: "結果" })).not.toBeInTheDocument();
   });
 
@@ -136,8 +136,8 @@ describe("GameScreen", () => {
       />,
     );
 
-    expect(screen.getByText("順番待ちです。手番: Bob")).toBeInTheDocument();
-    expect(screen.getByText("いまは順番待ちです。手番が来ると操作できます。")).toBeInTheDocument();
+    expect(screen.getAllByText("現在の手番: Bob").length).toBeGreaterThan(0);
+    expect(screen.queryByText("順番待ちです。手番: Bob")).not.toBeInTheDocument();
   });
 
   it("shows between-hands result and ready controls", () => {

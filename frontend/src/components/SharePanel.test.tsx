@@ -14,10 +14,11 @@ afterEach(() => {
 });
 
 describe("SharePanel", () => {
-  it("shows success feedback after invoking native share", async () => {
+  it("invokes native share without showing success banner", async () => {
+    const shareMock = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "share", {
       configurable: true,
-      value: vi.fn().mockResolvedValue(undefined),
+      value: shareMock,
     });
 
     render(<SharePanel shareUrl="http://localhost:4173/rooms/ROOM01" />);
@@ -25,8 +26,9 @@ describe("SharePanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "共有する" }));
 
     await waitFor(() => {
-      expect(screen.getByText("共有画面を開きました。送信先を選んで共有してください。")).toBeInTheDocument();
+      expect(shareMock).toHaveBeenCalled();
     });
+    expect(screen.queryByText("共有画面を開きました。送信先を選んで共有してください。")).not.toBeInTheDocument();
   });
 
   it("shows guidance when native share is unavailable", async () => {

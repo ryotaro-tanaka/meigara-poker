@@ -9,6 +9,8 @@ interface PlayerListProps {
   compactGameView?: boolean;
   totalSlots?: number;
   hideEliminatedStatus?: boolean;
+  editableSelfName?: boolean;
+  onSelfNameChange?: (name: string) => void;
 }
 
 export function PlayerList({
@@ -19,6 +21,8 @@ export function PlayerList({
   compactGameView = false,
   totalSlots = players.length,
   hideEliminatedStatus = false,
+  editableSelfName = false,
+  onSelfNameChange,
 }: PlayerListProps) {
   const slots = Array.from({ length: Math.max(totalSlots, players.length) }, (_, index) => players[index] ?? null);
 
@@ -32,7 +36,17 @@ export function PlayerList({
           >
             <div className="stack tight">
               <div className="player-title-row">
-                <strong>{player.name || "名前未設定"}</strong>
+                {editableSelfName && player.playerId === selfPlayerId ? (
+                  <input
+                    className="player-name-inline-input"
+                    value={player.name || ""}
+                    onChange={(event) => onSelfNameChange?.(event.target.value)}
+                    placeholder="名前を入力"
+                    aria-label="自分の名前"
+                  />
+                ) : (
+                  <strong>{player.name || "名前未設定"}</strong>
+                )}
                 {player.playerId === selfPlayerId ? <span className="chip">あなた</span> : null}
                 {getPositionBadgeLabel(player.position) ? <span className="chip neutral">{getPositionBadgeLabel(player.position)}</span> : null}
                 {readyPlayerIds.includes(player.playerId) ? <span className="chip neutral">Ready</span> : null}
@@ -62,11 +76,15 @@ export function PlayerList({
           <li key={`empty-slot-${index}`} className="player-item player-item-empty">
             <div className="stack tight">
               <div className="player-title-row">
-                <strong>空き枠</strong>
+                <span className="skeleton-line skeleton-line-name" />
                 <span className="chip neutral">{index + 1}/6</span>
               </div>
-              <span className="meta-text">参加者を待っています</span>
+              <div className="player-meta-grid">
+                <span className="skeleton-line" />
+                <span className="skeleton-line" />
+              </div>
             </div>
+            <span className="status-dot">待機中</span>
           </li>
         ),
       )}

@@ -48,6 +48,6 @@ describe("PlayerList", () => {
       />,
     );
 
-    expect(screen.getAllByText("空き枠")).toHaveLength(4);
+    expect(screen.getAllByText("待機中")).toHaveLength(4);
   });
 });

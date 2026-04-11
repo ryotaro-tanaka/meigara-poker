@@ -19,17 +19,14 @@ export function SharePanel({ shareUrl }: SharePanelProps) {
         text: "この URL から同じ部屋に参加できます。",
         url: shareUrl,
       });
-      setShareMessage("共有画面を開きました。送信先を選んで共有してください。");
+      setShareMessage(null);
     } catch {
       setShareMessage("共有に失敗しました。URL を手動で送ってください。");
     }
   }
 
   return (
-    <section className="panel stack">
-      <div className="section-heading">
-        <h2>招待リンク</h2>
-      </div>
+    <div className="stack">
       <p className="meta-text">この URL を送ると、同じ部屋に参加できます。</p>
       <div className="share-box">{shareUrl}</div>
       <div className="action-row action-row-start">
@@ -38,6 +35,6 @@ export function SharePanel({ shareUrl }: SharePanelProps) {
         </button>
       </div>
       {shareMessage ? <p className="hint-text">{shareMessage}</p> : <p className="meta-text">再参加するときも同じ URL を使います。</p>}
-    </section>
+    </div>
   );
 }
