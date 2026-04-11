@@ -1,0 +1,10 @@
+{
+  "name": "Meigara Poker",
+  "short_name": "Meigara",
+  "description": "企業カードで遊ぶテキサスホールデム風ポーカー",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#edf4f4",
+  "theme_color": "#1d776b",
+  "lang": "ja"
+}
