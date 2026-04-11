@@ -31,6 +31,7 @@ export interface PublicPlayerState extends PlayerState {
   position: PublicPlayerPosition;
   hasLeft: boolean;
   isEliminated: boolean;
+  isParticipating: boolean;
 }
 
 export type RoomPhase = "waiting" | "preflop" | "flop" | "turn" | "river" | "showdown" | "between_hands";
@@ -123,6 +124,7 @@ export interface RoomState {
   gameOverReason: GameOverReason | null;
   finalStandings: FinalStanding[];
   readyPlayerIds: string[];
+  participatingPlayerIds: string[];
 }
 
 export interface RoomSnapshot {
@@ -148,6 +150,7 @@ export interface RoomSnapshot {
   finalStandings: FinalStanding[];
   readyPlayerIds: string[];
   requiredReadyCount: number;
+  activeParticipantCount: number;
 }
 
 export interface PlayerRoomState {
@@ -169,6 +172,7 @@ export interface PlayerRoomState {
   finalStandings: FinalStanding[];
   readyPlayerIds: string[];
   requiredReadyCount: number;
+  activeParticipantCount: number;
 }
 
 export interface PlayerActionInput {
@@ -237,6 +241,7 @@ function cloneState(state: RoomState): RoomState {
     gameOverReason: state.gameOverReason,
     finalStandings: state.finalStandings.map((standing) => ({ ...standing })),
     readyPlayerIds: [...state.readyPlayerIds],
+    participatingPlayerIds: [...state.participatingPlayerIds],
   };
 }
 
@@ -403,6 +408,14 @@ function getRequiredReadyCount(state: RoomState): number {
   return Math.floor(continuingPlayerCount / 2) + 1;
 }
 
+function isParticipating(state: RoomState, playerId: string): boolean {
+  return state.participatingPlayerIds.includes(playerId);
+}
+
+function getActiveParticipantCount(state: RoomState): number {
+  return state.players.filter((player) => player.connected && isParticipating(state, player.playerId) && !hasPlayerExited(state, player.playerId)).length;
+}
+
 function getFinalStandingStatus(state: RoomState, playerId: string): FinalStandingStatus {
   if (hasPlayerDisconnected(state, playerId)) {
     return "disconnected";
@@ -478,6 +491,7 @@ function createPublicPlayerState(state: RoomState, player: PlayerState): PublicP
     position: getPlayerPosition(state, player.playerId),
     hasLeft: hasPlayerExited(state, player.playerId),
     isEliminated: isPlayerEliminated(state, player.playerId),
+    isParticipating: isParticipating(state, player.playerId),
   };
 }
 
@@ -606,6 +620,7 @@ function createBetweenHandsState(state: RoomState): RoomState {
   nextState.minRaise = BIG_BLIND;
   nextState.lastAggressorPlayerId = null;
   nextState.readyPlayerIds = [];
+  nextState.participatingPlayerIds = nextState.players.map((player) => player.playerId);
   nextState.availableActions = Object.fromEntries(nextState.players.map((player) => [player.playerId, []]));
   nextState.actionState = { playersToAct: [] };
 
@@ -682,6 +697,7 @@ export function acknowledgeGameOver(state: RoomState): RoomState {
     gameOverReason: null,
     finalStandings: [],
     readyPlayerIds: [],
+    participatingPlayerIds: nextPlayers.map((player) => player.playerId),
   };
 }
 
@@ -716,6 +732,7 @@ export function isReadyThresholdMet(state: RoomState): boolean {
 export function removePlayerFromGame(state: RoomState, playerId: string, reason: "left" | "disconnected"): RoomState {
   const nextState = cloneState(state);
   nextState.readyPlayerIds = nextState.readyPlayerIds.filter((candidate) => candidate !== playerId);
+  nextState.participatingPlayerIds = nextState.participatingPlayerIds.filter((candidate) => candidate !== playerId);
 
   if (reason === "left" && !nextState.leftPlayerIds.includes(playerId)) {
     nextState.leftPlayerIds.push(playerId);
@@ -984,6 +1001,7 @@ export function createRoomSnapshot(state: RoomState): RoomSnapshot {
     finalStandings: state.finalStandings,
     readyPlayerIds: state.readyPlayerIds,
     requiredReadyCount: getRequiredReadyCount(state),
+    activeParticipantCount: getActiveParticipantCount(state),
   };
 }
 
@@ -1010,6 +1028,7 @@ export function createPlayerRoomState(state: RoomState, playerId: string): Playe
     finalStandings: state.finalStandings,
     readyPlayerIds: state.readyPlayerIds,
     requiredReadyCount: getRequiredReadyCount(state),
+    activeParticipantCount: getActiveParticipantCount(state),
   };
 }
 
@@ -1053,6 +1072,7 @@ export function createStartedRoomState(state: RoomState): RoomState {
     gameOverReason: null,
     finalStandings: [],
     readyPlayerIds: [],
+    participatingPlayerIds: state.players.map((player) => player.playerId),
   };
 
   const smallBlindPlayerId = nextState.players[smallBlindIndex]?.playerId;

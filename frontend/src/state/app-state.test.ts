@@ -112,6 +112,14 @@ describe("appReducer", () => {
 
   it("stores action feedback from action_applied", () => {
     const room = createRoomSnapshot();
+    const roomAfterAction: RoomSnapshot = {
+      ...room,
+      players: room.players.map((player) =>
+        player.playerId === "player-2"
+          ? { ...player, totalContribution: player.totalContribution + 12, currentBet: player.currentBet + 12 }
+          : player,
+      ),
+    };
     const state = {
       ...createInitialState({ kind: "room", roomId: "ROOM01" }),
       room,
@@ -123,13 +131,55 @@ describe("appReducer", () => {
       action: "call",
       amount: null,
       phase: "flop",
-      room,
+      room: roomAfterAction,
     };
 
     const next = appReducer(state, { type: "server_event_received", event });
 
     expect(next.lastActionMessage).toContain("Bob");
     expect(next.lastActionMessage).toContain("call");
+    expect(next.playerRoundHistory["player-2"]?.flop).toBe(12);
+  });
+
+  it("does not add round history when action commits no chips", () => {
+    const room = createRoomSnapshot();
+    const state = {
+      ...createInitialState({ kind: "room", roomId: "ROOM01" }),
+      room,
+      playerId: "player-1",
+    };
+    const event: Extract<ServerEvent, { type: "action_applied" }> = {
+      type: "action_applied",
+      actorPlayerId: "player-2",
+      action: "check",
+      amount: null,
+      phase: "flop",
+      room,
+    };
+
+    const next = appReducer(state, { type: "server_event_received", event });
+
+    expect(next.playerRoundHistory["player-2"]).toBeUndefined();
+  });
+
+  it("clears player round history on game_started", () => {
+    const state = {
+      ...createInitialState({ kind: "room", roomId: "ROOM01" }),
+      playerRoundHistory: {
+        "player-1": { preflop: 4 },
+      },
+    };
+    const event: Extract<ServerEvent, { type: "game_started" }> = {
+      type: "game_started",
+      roomId: "ROOM01",
+      phase: "preflop",
+      selectedIndustries: [],
+      playerCount: 2,
+    };
+
+    const next = appReducer(state, { type: "server_event_received", event });
+
+    expect(next.playerRoundHistory).toEqual({});
   });
 
   it("stores server errors without losing room state", () => {

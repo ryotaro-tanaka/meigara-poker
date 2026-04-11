@@ -87,6 +87,7 @@ function makeWaitingState(players = makePlayers(3)): RoomState {
     gameOverReason: null,
     finalStandings: [],
     readyPlayerIds: [],
+    participatingPlayerIds: players.map((player) => player.playerId),
   };
 }
 

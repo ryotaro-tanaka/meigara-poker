@@ -9,8 +9,10 @@ export function CardItem({ card }: CardItemProps) {
 
   return (
     <article className={`card-item ${suitClass}`}>
-      <p className="card-suit card-suit-colored">{card.suit}</p>
-      <h3>{card.number}</h3>
+      <div className="card-header">
+        <p className="card-suit card-suit-colored">{card.suit}</p>
+        <p className="card-number">{card.number}</p>
+      </div>
       <p className="card-name">{card.name}</p>
     </article>
   );

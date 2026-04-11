@@ -15,6 +15,10 @@ import type {
   SidePot,
 } from "../lib/types";
 
+export type BettingRoundPhase = "preflop" | "flop" | "turn" | "river";
+export type PlayerRoundHistory = Partial<Record<BettingRoundPhase, number>>;
+export type PlayerRoundHistoryByPlayer = Record<string, PlayerRoundHistory>;
+
 interface RoomSyncState {
   room: RoomSnapshot | null;
   hand: DeckCard[];
@@ -35,6 +39,7 @@ interface RoomSyncState {
   finalStandings: FinalStanding[];
   readyPlayerIds: string[];
   requiredReadyCount: number;
+  playerRoundHistory: PlayerRoundHistoryByPlayer;
 }
 
 interface UiState {
@@ -94,6 +99,7 @@ function createInitialRoomSyncState(): RoomSyncState {
     finalStandings: [],
     readyPlayerIds: [],
     requiredReadyCount: 0,
+    playerRoundHistory: {},
   };
 }
 
@@ -182,6 +188,7 @@ function resetRoomScopedState(state: AppState, keepRoom: boolean): AppState {
         finalStandings: state.finalStandings,
         readyPlayerIds: state.readyPlayerIds,
         requiredReadyCount: state.requiredReadyCount,
+        playerRoundHistory: state.playerRoundHistory,
       }
     : createInitialRoomSyncState();
 
@@ -222,6 +229,50 @@ function applyActionMessage(state: AppState, actorPlayerId: string, action: Play
   return `${actorLabel} が ${getActionLabel(action)}${amount ? ` ${amount}` : ""} を実行しました。`;
 }
 
+function getBettingRoundPhase(phase: string): BettingRoundPhase | null {
+  if (phase === "preflop" || phase === "flop" || phase === "turn" || phase === "river") {
+    return phase;
+  }
+
+  return null;
+}
+
+function getTotalContribution(room: RoomSnapshot | null, playerId: string): number {
+  if (!room) {
+    return 0;
+  }
+
+  return room.players.find((player) => player.playerId === playerId)?.totalContribution ?? 0;
+}
+
+function applyActionHistory(
+  state: AppState,
+  event: Extract<ServerEvent, { type: "action_applied" }>,
+): PlayerRoundHistoryByPlayer {
+  const round = getBettingRoundPhase(event.phase);
+  if (!round) {
+    return state.playerRoundHistory;
+  }
+
+  const previousTotal = getTotalContribution(state.room, event.actorPlayerId);
+  const nextTotal = getTotalContribution(event.room, event.actorPlayerId);
+  const committedAmount = Math.max(0, nextTotal - previousTotal);
+
+  if (committedAmount <= 0) {
+    return state.playerRoundHistory;
+  }
+
+  const actorHistory = state.playerRoundHistory[event.actorPlayerId] ?? {};
+
+  return {
+    ...state.playerRoundHistory,
+    [event.actorPlayerId]: {
+      ...actorHistory,
+      [round]: (actorHistory[round] ?? 0) + committedAmount,
+    },
+  };
+}
+
 function applyServerEvent(state: AppState, event: ServerEvent): AppState {
   if (event.type === "error") {
     return {
@@ -246,6 +297,7 @@ function applyServerEvent(state: AppState, event: ServerEvent): AppState {
     return {
       ...state,
       lastActionMessage: "ゲームが開始されました。",
+      playerRoundHistory: {},
     };
   }
 
@@ -253,6 +305,7 @@ function applyServerEvent(state: AppState, event: ServerEvent): AppState {
     return {
       ...applyRoomState(state, event.room),
       lastActionMessage: applyActionMessage(state, event.actorPlayerId, event.action, event.amount),
+      playerRoundHistory: applyActionHistory(state, event),
     };
   }
 

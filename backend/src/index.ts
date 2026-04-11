@@ -19,7 +19,7 @@ interface RoomCreateRequest {
 }
 
 interface ClientEventBase {
-  type: "join_room" | "set_name" | "start_game" | "player_action" | "leave_room" | "acknowledge_game_over" | "set_ready" | "ping";
+  type: "join_room" | "set_name" | "set_participation" | "start_game" | "player_action" | "leave_room" | "acknowledge_game_over" | "set_ready" | "ping";
 }
 
 interface JoinRoomEvent extends ClientEventBase {
@@ -30,6 +30,11 @@ interface JoinRoomEvent extends ClientEventBase {
 interface SetNameEvent extends ClientEventBase {
   type: "set_name";
   name?: string;
+}
+
+interface SetParticipationEvent extends ClientEventBase {
+  type: "set_participation";
+  participating: boolean;
 }
 
 interface StartGameEvent extends ClientEventBase {
@@ -62,6 +67,7 @@ interface SetReadyEvent extends ClientEventBase {
 type ClientEvent =
   | JoinRoomEvent
   | SetNameEvent
+  | SetParticipationEvent
   | StartGameEvent
   | PlayerActionEvent
   | LeaveRoomEvent
@@ -188,6 +194,10 @@ function normalizePlayer(state: RoomState, playerId: string, name = ""): { state
 
   if (existing) {
     existing.connected = true;
+    state.disconnectedPlayerIds = state.disconnectedPlayerIds.filter((candidate) => candidate !== playerId);
+    if (state.phase === "waiting") {
+      state.leftPlayerIds = state.leftPlayerIds.filter((candidate) => candidate !== playerId);
+    }
     if (name) {
       existing.name = name;
     }
@@ -207,7 +217,20 @@ function normalizePlayer(state: RoomState, playerId: string, name = ""): { state
   };
 
   state.players.push(player);
+  state.participatingPlayerIds = state.participatingPlayerIds.filter((candidate) => candidate !== playerId);
   return { state, player, created: true };
+}
+
+function getActiveParticipatingPlayerIds(state: RoomState): string[] {
+  return state.players
+    .filter(
+      (player) =>
+        player.connected &&
+        state.participatingPlayerIds.includes(player.playerId) &&
+        !state.leftPlayerIds.includes(player.playerId) &&
+        !state.disconnectedPlayerIds.includes(player.playerId),
+    )
+    .map((player) => player.playerId);
 }
 
 function makeRoomId(): string {
@@ -467,11 +490,21 @@ export class RoomDurableObject {
       throw new Error("Return to the waiting room before starting a new game.");
     }
 
+    const activeParticipantPlayerIds = getActiveParticipatingPlayerIds(state);
+    if (activeParticipantPlayerIds.length < 2 || activeParticipantPlayerIds.length > 6) {
+      throw new Error("Game can start only with 2 to 6 participating players.");
+    }
+
     const { deck, selectedIndustries } = await buildDeck(this.env.DB);
+    const participatingPlayers = state.players.filter((player) => activeParticipantPlayerIds.includes(player.playerId));
     const nextState = createStartedRoomState({
       ...state,
+      players: participatingPlayers,
       deck,
       selectedIndustries,
+      participatingPlayerIds: activeParticipantPlayerIds,
+      leftPlayerIds: state.leftPlayerIds.filter((playerId) => activeParticipantPlayerIds.includes(playerId)),
+      disconnectedPlayerIds: state.disconnectedPlayerIds.filter((playerId) => activeParticipantPlayerIds.includes(playerId)),
     });
 
     await this.saveState(nextState);
@@ -617,11 +650,52 @@ export class RoomDurableObject {
       return;
     }
 
+    if (payload.type === "set_participation") {
+      const player = state.players.find((item) => item.playerId === playerId);
+
+      if (!player) {
+        this.sendToPlayer(playerId, { type: "error", message: "Player has not joined the room yet." });
+        return;
+      }
+
+      if (state.phase !== "waiting") {
+        this.sendToPlayer(playerId, { type: "error", message: "Participation can only be changed in the waiting room." });
+        return;
+      }
+
+      if (payload.participating) {
+        if (!player.name.trim()) {
+          this.sendToPlayer(playerId, { type: "error", message: "名前を入力してから参加してください。" });
+          return;
+        }
+
+        if (!state.participatingPlayerIds.includes(playerId)) {
+          state.participatingPlayerIds.push(playerId);
+        }
+      } else {
+        state.participatingPlayerIds = state.participatingPlayerIds.filter((candidate) => candidate !== playerId);
+      }
+
+      await this.saveState(state);
+      this.log("info", "player_updated", toLogContext(state, { playerId, reason: payload.participating ? "participating" : "not_participating" }));
+      this.broadcastSharedSnapshot("player_updated", state);
+      this.broadcastRoomState(state);
+      return;
+    }
+
     if (payload.type === "start_game") {
       if (state.phase !== "waiting") {
         this.sendToPlayer(playerId, {
           type: "error",
           message: "Use ready between hands. start_game is only available from the waiting room.",
+        });
+        return;
+      }
+
+      if (!state.participatingPlayerIds.includes(playerId)) {
+        this.sendToPlayer(playerId, {
+          type: "error",
+          message: "本参加プレイヤーのみゲーム開始できます。",
         });
         return;
       }
@@ -673,7 +747,10 @@ export class RoomDurableObject {
       }
 
       player.connected = false;
-      const nextState = maybeFinalizeGame(removePlayerFromGame(state, playerId, "left"));
+      if (state.phase === "waiting" && !state.gameEnded) {
+        state.participatingPlayerIds = state.participatingPlayerIds.filter((candidate) => candidate !== playerId);
+      }
+      const nextState = state.phase === "waiting" && !state.gameEnded ? state : maybeFinalizeGame(removePlayerFromGame(state, playerId, "left"));
       const startedState = await this.maybeStartReadyHand(nextState);
 
       if (startedState) {
@@ -777,6 +854,7 @@ export class RoomDurableObject {
         gameOverReason: null,
         finalStandings: [],
         readyPlayerIds: [],
+        participatingPlayerIds: [],
       };
 
       await this.saveState(state);

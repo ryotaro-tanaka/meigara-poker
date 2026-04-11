@@ -117,7 +117,7 @@ export function getWaitingRuleItems(): string[] {
 }
 
 export function getWaitingFlowItems(): string[] {
-  return ["手札", "場札3枚", "場札4枚目", "場札5枚目", "勝負"];
+  return ["手札", "場札3枚", "場札4枚目", "場札5枚目"];
 }
 
 export function getWaitingHandRankItems(): string[] {

@@ -35,6 +35,7 @@ export interface PublicPlayerState extends PlayerState {
   position: PublicPlayerPosition;
   hasLeft: boolean;
   isEliminated: boolean;
+  isParticipating?: boolean;
 }
 
 export type RoomPhase = "waiting" | "preflop" | "flop" | "turn" | "river" | "showdown" | "between_hands";
@@ -121,6 +122,7 @@ export interface RoomSnapshot {
   finalStandings: FinalStanding[];
   readyPlayerIds: string[];
   requiredReadyCount: number;
+  activeParticipantCount?: number;
 }
 
 export interface PlayerRoomState {
@@ -142,6 +144,7 @@ export interface PlayerRoomState {
   finalStandings: FinalStanding[];
   readyPlayerIds: string[];
   requiredReadyCount: number;
+  activeParticipantCount?: number;
 }
 
 export interface CreateRoomResponse {
@@ -227,6 +230,10 @@ export type ClientEvent =
   | {
       type: "set_name";
       name?: string;
+    }
+  | {
+      type: "set_participation";
+      participating: boolean;
     }
   | {
       type: "start_game";

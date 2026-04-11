@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GameScreen } from "./GameScreen";
@@ -94,6 +94,7 @@ function createBaseState(): AppState {
     finalStandings: [],
     readyPlayerIds: [],
     requiredReadyCount: 0,
+    playerRoundHistory: {},
     connectionStatus: "connected",
     serverError: null,
     isCreatingRoom: false,
@@ -113,18 +114,49 @@ describe("GameScreen", () => {
       />,
     );
 
-    expect(screen.getByText("場札 3")).toBeInTheDocument();
+    expect(screen.getByText("場札3枚")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "テーブル" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "ハンド" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "プレイヤー" })).toBeInTheDocument();
-    expect(screen.getByText("ポット: 40")).toBeInTheDocument();
-    expect(screen.getByText("ラウンドの最低参加費: 0")).toBeInTheDocument();
-    expect(screen.getByText("持ち点: 180")).toBeInTheDocument();
-    expect(container.querySelectorAll(".card-item-info")).toHaveLength(2);
+    expect(screen.getByText("ヒント")).toBeInTheDocument();
+    expect(screen.getByText("ポット")).toBeInTheDocument();
+    expect(screen.getByText("40")).toBeInTheDocument();
+    expect(screen.getByText("（勝者が獲得）")).toBeInTheDocument();
+    expect(screen.queryByText("ラウンドの最低参加費: 0")).not.toBeInTheDocument();
+    expect(screen.queryByText("持ち点: 180")).not.toBeInTheDocument();
+    expect(container.querySelectorAll(".card-item-info")).toHaveLength(1);
     expect(screen.queryByText("必要コスト: 0")).not.toBeInTheDocument();
     expect(screen.queryByText("Alice が bet 10 を実行しました。")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "退出する" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "結果" })).not.toBeInTheDocument();
+  });
+
+  it("shows pot amount as main + side total", () => {
+    const state = createBaseState();
+    state.pot = 60;
+    state.mainPot = { amount: 40, eligiblePlayerIds: ["player-1", "player-2"] };
+    state.sidePots = [{ amount: 20, eligiblePlayerIds: ["player-1"] }];
+    state.room = state.room
+      ? {
+          ...state.room,
+          pot: 60,
+          mainPot: { amount: 40, eligiblePlayerIds: ["player-1", "player-2"] },
+          sidePots: [{ amount: 20, eligiblePlayerIds: ["player-1"] }],
+        }
+      : null;
+
+    render(
+      <GameScreen
+        state={state}
+        onPlayerAction={vi.fn()}
+        onReadyChange={vi.fn()}
+        onLeaveRoom={vi.fn()}
+        onAcknowledgeGameOver={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("ポット")).toBeInTheDocument();
+    expect(screen.getByText("60")).toBeInTheDocument();
   });
 
   it("shows collapsed footer message when it is not my turn", () => {
@@ -143,6 +175,35 @@ describe("GameScreen", () => {
 
     expect(screen.getAllByText("現在の手番: Bob").length).toBeGreaterThan(0);
     expect(screen.queryByText("順番待ちです。手番: Bob")).not.toBeInTheDocument();
+  });
+
+  it("toggles per-player round betting history in player section", () => {
+    const state = createBaseState();
+    state.playerRoundHistory = {
+      "player-1": { preflop: 2, flop: 4 },
+    };
+
+    render(
+      <GameScreen
+        state={state}
+        onPlayerAction={vi.fn()}
+        onReadyChange={vi.fn()}
+        onLeaveRoom={vi.fn()}
+        onAcknowledgeGameOver={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("ラウンド別のベット")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Alice/ }));
+
+    const historyPanel = screen.getByText("ラウンド別のベット").closest("section");
+    expect(historyPanel).not.toBeNull();
+    if (!historyPanel) {
+      throw new Error("history panel is missing");
+    }
+    expect(within(historyPanel).getByText("手札")).toBeInTheDocument();
+    expect(within(historyPanel).getByText("場札4枚目")).toBeInTheDocument();
   });
 
   it("shows between-hands result and ready controls", () => {

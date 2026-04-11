@@ -15,6 +15,7 @@ describe("ActionPanel", () => {
         toCall={8}
         currentBet={8}
         myCurrentBet={0}
+        myStack={155}
         mainPot={{ amount: 40, eligiblePlayerIds: ["player-1", "player-2"] }}
         isMyTurn
         currentTurnLabel="あなた"
@@ -22,9 +23,9 @@ describe("ActionPanel", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "降りる" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "賭ける (8)" })).toBeEnabled();
-    expect(screen.queryByRole("button", { name: "All-in" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "フォールド" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "プレイ" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "オールイン +155" })).not.toBeInTheDocument();
     expect(screen.queryByText("全員の参加額がそろうと次に進みます。")).not.toBeInTheDocument();
   });
 
@@ -37,6 +38,7 @@ describe("ActionPanel", () => {
         toCall={8}
         currentBet={8}
         myCurrentBet={0}
+        myStack={155}
         mainPot={{ amount: 40, eligiblePlayerIds: ["player-1", "player-2"] }}
         isMyTurn
         currentTurnLabel="あなた"
@@ -44,11 +46,12 @@ describe("ActionPanel", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "賭ける (8)" }));
-    fireEvent.click(screen.getByRole("button", { name: "24" }));
+    fireEvent.click(screen.getByRole("button", { name: "プレイ" }));
+    fireEvent.click(screen.getByRole("button", { name: "レイズ +24" }));
 
-    expect(screen.getByRole("button", { name: "参加 8" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "All-in" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "コール +8" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "オールイン +155" })).toBeInTheDocument();
+    expect(screen.queryByText("このラウンドの賭け額:")).not.toBeInTheDocument();
     expect(onAction).toHaveBeenCalledWith("raise", 24);
   });
 
@@ -61,6 +64,7 @@ describe("ActionPanel", () => {
         toCall={0}
         currentBet={0}
         myCurrentBet={0}
+        myStack={155}
         mainPot={{ amount: 40, eligiblePlayerIds: ["player-1", "player-2"] }}
         isMyTurn
         currentTurnLabel="あなた"
@@ -68,8 +72,8 @@ describe("ActionPanel", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "賭ける (0)" }));
-    fireEvent.click(screen.getByRole("button", { name: "20" }));
+    fireEvent.click(screen.getByRole("button", { name: "プレイ" }));
+    fireEvent.click(screen.getByRole("button", { name: "ベット +20" }));
 
     expect(onAction).toHaveBeenCalledWith("bet", 20);
   });
@@ -81,6 +85,7 @@ describe("ActionPanel", () => {
         toCall={6}
         currentBet={6}
         myCurrentBet={0}
+        myStack={155}
         mainPot={{ amount: 40, eligiblePlayerIds: ["player-1", "player-2"] }}
         isMyTurn
         currentTurnLabel="あなた"
@@ -88,11 +93,11 @@ describe("ActionPanel", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "賭ける (6)" }));
+    fireEvent.click(screen.getByRole("button", { name: "プレイ" }));
 
-    expect(screen.getByRole("button", { name: "参加 6" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "All-in" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "12" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "コール +6" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "オールイン +155" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "レイズ +12" })).not.toBeInTheDocument();
   });
 
   it("shows collapsed state when it is not my turn", () => {
@@ -102,6 +107,7 @@ describe("ActionPanel", () => {
         toCall={0}
         currentBet={8}
         myCurrentBet={2}
+        myStack={155}
         mainPot={{ amount: 40, eligiblePlayerIds: ["player-1", "player-2"] }}
         isMyTurn={false}
         currentTurnLabel="Bob"
@@ -110,6 +116,6 @@ describe("ActionPanel", () => {
     );
 
     expect(screen.getByText("現在の手番: Bob")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "降りる" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "フォールド" })).not.toBeInTheDocument();
   });
 });

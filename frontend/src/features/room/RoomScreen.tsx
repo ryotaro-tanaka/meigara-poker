@@ -11,6 +11,7 @@ interface RoomScreenProps {
   state: AppState;
   shareUrl: string;
   onNameChange: (name: string) => void;
+  onSetParticipation: (participating: boolean) => void;
   onStartGame: () => void;
   onPlayerAction: (action: PlayerActionType, amount?: number) => void;
   onReadyChange: (ready: boolean) => void;
@@ -22,6 +23,7 @@ export function RoomScreen({
   state,
   shareUrl,
   onNameChange,
+  onSetParticipation,
   onStartGame,
   onPlayerAction,
   onReadyChange,
@@ -30,7 +32,14 @@ export function RoomScreen({
 }: RoomScreenProps) {
   const phase = state.room?.phase ?? "waiting";
   const isWaiting = phase === "waiting";
-  const canStart = Boolean(state.room && state.room.playerCount >= 2 && isWaiting);
+  const activeParticipantCount =
+    state.room?.activeParticipantCount ??
+    (state.room?.players ?? []).filter((player) => player.connected && player.isParticipating).length;
+  const selfPlayer = (state.room?.players ?? []).find((player) => player.playerId === state.playerId);
+  const selfName = (state.playerName || selfPlayer?.name || "").trim();
+  const isSelfParticipating = Boolean(selfPlayer?.isParticipating);
+  const canStart = Boolean(state.room && isWaiting && isSelfParticipating && activeParticipantCount >= 2);
+  const canParticipate = Boolean(selfName);
   const [isStartingGame, setIsStartingGame] = useState(false);
   const players = (state.room?.players ?? []).map((player) =>
     player.playerId === state.playerId ? { ...player, name: state.playerName || player.name } : player,
@@ -75,14 +84,20 @@ export function RoomScreen({
                   hideEliminatedStatus
                   editableSelfName
                   onSelfNameChange={onNameChange}
+                  showParticipationToggle
+                  isSelfParticipating={isSelfParticipating}
+                  canParticipate={canParticipate}
+                  onSetParticipation={onSetParticipation}
                 />
                 <div className="action-row">
                   <button className="primary-button" onClick={handleStartGame} disabled={!canStart || isStartingGame}>
                     {isStartingGame ? "開始中..." : "ゲーム開始"}
                   </button>
                 </div>
-                <p className="meta-text">2 人以上で開始できます。現在 {state.room?.playerCount ?? 0}/6 人。</p>
-                {!canStart ? <p className="hint-text">開始ボタンは 2 人以上そろうと押せます。</p> : null}
+                <p className="meta-text">2 人以上で開始できます。現在 {activeParticipantCount}/6 人。</p>
+                {!isSelfParticipating ? <p className="hint-text">参加を押すと人数に含まれます。</p> : null}
+                {!canParticipate ? <p className="hint-text">名前入力後に参加できます。</p> : null}
+                {!canStart && isSelfParticipating ? <p className="hint-text">開始ボタンは本参加プレイヤーが 2 人以上そろうと押せます。</p> : null}
               </section>
               <section className="panel stack">
                 <div className="section-heading">

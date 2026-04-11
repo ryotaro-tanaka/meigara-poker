@@ -4,11 +4,32 @@ interface CreateRoomScreenProps {
   defaultRoomName: string;
   isSubmitting: boolean;
   error: string | null;
+  onJoin: (input: string) => boolean;
   onSubmit: (roomName: string) => void;
 }
 
-export function CreateRoomScreen({ defaultRoomName, isSubmitting, error, onSubmit }: CreateRoomScreenProps) {
+export function CreateRoomScreen({ defaultRoomName, isSubmitting, error, onJoin, onSubmit }: CreateRoomScreenProps) {
   const [roomName, setRoomName] = useState(defaultRoomName);
+  const [joinInput, setJoinInput] = useState("");
+  const [joinError, setJoinError] = useState<string | null>(null);
+
+  function handleJoin(): void {
+    const value = joinInput.trim();
+
+    if (!value) {
+      setJoinError("URLまたは部屋IDを確認してください。");
+      return;
+    }
+
+    const accepted = onJoin(value);
+
+    if (!accepted) {
+      setJoinError("URLまたは部屋IDを確認してください。");
+      return;
+    }
+
+    setJoinError(null);
+  }
 
   return (
     <main className="app-shell">
@@ -36,6 +57,28 @@ export function CreateRoomScreen({ defaultRoomName, isSubmitting, error, onSubmi
             {isSubmitting ? "作成中..." : "部屋を作成"}
           </button>
           {error ? <p className="error-text">{error}</p> : null}
+        </section>
+        <section className="panel stack">
+          <div className="section-heading">
+            <h2>部屋参加</h2>
+          </div>
+          <label className="field">
+            <span>共有URLまたは部屋ID</span>
+            <input
+              value={joinInput}
+              onChange={(event) => {
+                setJoinInput(event.target.value);
+                if (joinError) {
+                  setJoinError(null);
+                }
+              }}
+              placeholder="例: https://.../rooms/ABC123 または ABC123"
+            />
+          </label>
+          <button className="secondary-button" disabled={!joinInput.trim()} onClick={handleJoin}>
+            参加する
+          </button>
+          {joinError ? <p className="error-text">{joinError}</p> : null}
         </section>
       </section>
     </main>

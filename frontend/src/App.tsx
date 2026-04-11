@@ -1,5 +1,6 @@
 import { useEffect, useReducer } from "react";
 import { createRoom } from "./lib/api";
+import { resolveRoomIdFromInput } from "./lib/room-link";
 import { getStoredPlayerName, setStoredPlayerId } from "./lib/storage";
 import { useAppRouter } from "./hooks/useAppRouter";
 import { useRoomConnection } from "./hooks/useRoomConnection";
@@ -32,12 +33,24 @@ export function App() {
     }
   }
 
+  function handleJoinRoom(input: string): boolean {
+    const roomId = resolveRoomIdFromInput(input);
+
+    if (!roomId) {
+      return false;
+    }
+
+    navigate(`/rooms/${roomId}`);
+    return true;
+  }
+
   if (state.route.kind === "home") {
     return (
       <CreateRoomScreen
         defaultRoomName="銘柄ポーカー部屋"
         isSubmitting={state.isCreatingRoom}
         error={state.serverError}
+        onJoin={handleJoinRoom}
         onSubmit={handleCreateRoom}
       />
     );
@@ -51,6 +64,7 @@ export function App() {
         dispatch({ type: "player_name_changed", name });
         sendEvent({ type: "set_name", name });
       }}
+      onSetParticipation={(participating) => sendEvent({ type: "set_participation", participating })}
       onStartGame={() => sendEvent({ type: "start_game" })}
       onPlayerAction={(action, amount) => sendEvent({ type: "player_action", action, amount })}
       onReadyChange={(ready) => sendEvent({ type: "set_ready", ready })}

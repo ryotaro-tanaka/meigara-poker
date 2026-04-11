@@ -25,8 +25,10 @@ export function CardRow({ cards, emptyLabel, hiddenCount = 0, trailingInfoCard, 
           ))}
           {Array.from({ length: hiddenCount }, (_, index) => (
             <article key={`hidden-${title}-${index}`} className="card-item card-item-hidden">
-              <p className="card-suit">伏せカード</p>
-              <h3>?</h3>
+              <div className="card-header">
+                <p className="card-suit">伏せカード</p>
+                <p className="card-number">?</p>
+              </div>
               <p className="card-name">まだ公開されていません</p>
             </article>
           ))}

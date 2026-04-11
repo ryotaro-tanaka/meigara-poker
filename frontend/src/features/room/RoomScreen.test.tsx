@@ -24,6 +24,7 @@ function createWaitingState(playerCount = 1): AppState {
       position: null,
       hasLeft: false,
       isEliminated: false,
+      isParticipating: true,
     },
   ];
   if (playerCount >= 2) {
@@ -41,6 +42,7 @@ function createWaitingState(playerCount = 1): AppState {
       position: null,
       hasLeft: false,
       isEliminated: false,
+      isParticipating: true,
     });
   }
   return {
@@ -71,6 +73,7 @@ function createWaitingState(playerCount = 1): AppState {
       finalStandings: [],
       readyPlayerIds: [],
       requiredReadyCount: 0,
+      activeParticipantCount: playerCount,
     },
     hand: [],
     board: [],
@@ -90,6 +93,7 @@ function createWaitingState(playerCount = 1): AppState {
     finalStandings: [],
     readyPlayerIds: [],
     requiredReadyCount: 0,
+    playerRoundHistory: {},
     connectionStatus: "connected",
     serverError: null,
     isCreatingRoom: false,
@@ -104,6 +108,7 @@ describe("RoomScreen", () => {
         state={createWaitingState()}
         shareUrl="http://localhost:4173/rooms/ROOM01"
         onNameChange={vi.fn()}
+        onSetParticipation={vi.fn()}
         onStartGame={vi.fn()}
         onPlayerAction={vi.fn()}
         onReadyChange={vi.fn()}
@@ -127,6 +132,7 @@ describe("RoomScreen", () => {
         state={createWaitingState(2)}
         shareUrl="http://localhost:4173/rooms/ROOM01"
         onNameChange={vi.fn()}
+        onSetParticipation={vi.fn()}
         onStartGame={onStartGame}
         onPlayerAction={vi.fn()}
         onReadyChange={vi.fn()}

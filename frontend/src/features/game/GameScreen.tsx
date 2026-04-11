@@ -1,9 +1,10 @@
+import { useEffect, useState } from "react";
 import { GameOverSummary } from "../../components/GameOverSummary";
 import { ActionPanel } from "../../components/ActionPanel";
 import { CardRow } from "../../components/CardRow";
 import { ResultSummary } from "../../components/ResultSummary";
 import { PlayerList } from "../../components/PlayerList";
-import { getCurrentTurnLabel } from "../../lib/game-ui";
+import { getCurrentTurnLabel, getWaitingHandRankItems } from "../../lib/game-ui";
 import type { PlayerActionType } from "../../lib/types";
 import type { AppState } from "../../state/app-state";
 
@@ -24,6 +25,23 @@ export function GameScreen({ state, onPlayerAction, onReadyChange, onLeaveRoom, 
   const currentTurnLabel = getCurrentTurnLabel(state);
   const phaseLabel = state.room?.phase ?? "waiting";
   const isMyTurn = state.currentTurnPlayerId === state.playerId;
+  const roundFlowSteps = [
+    { label: "手札", phase: "preflop" },
+    { label: "場札3枚", phase: "flop" },
+    { label: "場札4枚目", phase: "turn" },
+    { label: "場札5枚目", phase: "river" },
+  ] as const;
+  const currentRoundIndex = roundFlowSteps.findIndex((step) => step.phase === phaseLabel);
+  const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null);
+  const layeredPotTotal =
+    (state.mainPot?.amount ?? 0) + state.sidePots.reduce((sum, sidePot) => sum + sidePot.amount, 0);
+  const displayPotAmount = layeredPotTotal > 0 ? layeredPotTotal : state.pot;
+
+  useEffect(() => {
+    if (isBetweenHands) {
+      setExpandedPlayerId(null);
+    }
+  }, [isBetweenHands]);
 
   return (
     <section className="stack game-screen-mobile">
@@ -57,21 +75,20 @@ export function GameScreen({ state, onPlayerAction, onReadyChange, onLeaveRoom, 
       ) : (
         <>
           <section className="panel stack">
-            <div className="hero-topline">
-              <p className="eyebrow">Round</p>
-            </div>
-            <div className="round-track" role="list" aria-label="ラウンド進行">
-              {[
-                { label: "場札 0", phase: "preflop" },
-                { label: "場札 3", phase: "flop" },
-                { label: "場札 4", phase: "turn" },
-                { label: "場札 5", phase: "river" },
-              ].map((step) => (
-                <span key={step.phase} role="listitem" className={`round-chip${step.phase === phaseLabel ? " round-chip-active" : ""}`}>
-                  {step.label}
-                </span>
-              ))}
-            </div>
+            <p className="rule-flow-label">流れ</p>
+            <ol className="rule-flow-chips game-round-flow" aria-label="ラウンド進行">
+              {roundFlowSteps.map((step, index) => {
+                const isActive = index === currentRoundIndex;
+                const isDone = currentRoundIndex > -1 && index < currentRoundIndex;
+                return (
+                  <li key={step.phase} className="rule-flow-chip-item">
+                    <span className={`rule-flow-chip${isActive ? " rule-flow-chip-active" : ""}${isDone ? " rule-flow-chip-done" : ""}`}>
+                      {step.label}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
           </section>
 
           <section className="panel stack">
@@ -82,8 +99,9 @@ export function GameScreen({ state, onPlayerAction, onReadyChange, onLeaveRoom, 
               emptyLabel="まだ公開されていません。"
               trailingInfoCard={
                 <>
-                  <p className="meta-text">ポット: {state.mainPot?.amount ?? state.pot}</p>
-                  <p className="meta-text">ラウンドの最低参加費: {state.toCall}</p>
+                  <p className="pot-tile-label">ポット</p>
+                  <p className="pot-tile-amount">{displayPotAmount}</p>
+                  <p className="pot-tile-note">（勝者が獲得）</p>
                 </>
               }
             />
@@ -94,7 +112,6 @@ export function GameScreen({ state, onPlayerAction, onReadyChange, onLeaveRoom, 
               cards={state.hand}
               title="ハンド"
               emptyLabel="配布待ちです。"
-              trailingInfoCard={<p className="meta-text">持ち点: {state.myStack}</p>}
             />
           </section>
 
@@ -102,7 +119,38 @@ export function GameScreen({ state, onPlayerAction, onReadyChange, onLeaveRoom, 
             <div className="section-heading">
               <h2>プレイヤー</h2>
             </div>
-            <PlayerList players={state.room?.players ?? []} selfPlayerId={state.playerId} showBettingInfo compactGameView />
+            <PlayerList
+              players={state.room?.players ?? []}
+              selfPlayerId={state.playerId}
+              showBettingInfo
+              compactGameView
+              roundHistoryByPlayer={state.playerRoundHistory}
+              expandedPlayerId={expandedPlayerId}
+              onTogglePlayerHistory={(playerId) => {
+                setExpandedPlayerId((current) => (current === playerId ? null : playerId));
+              }}
+            />
+          </section>
+
+          <section className="panel stack">
+            <details className="hint-accordion">
+              <summary className="hint-accordion-summary">ヒント</summary>
+              <section className="stack tight hint-accordion-content">
+                <p className="meta-text">全員のベット額がそろうと、次のラウンドへ進みます。</p>
+                <p className="meta-text">手札 2 枚と場札 5 枚で最強の 5 枚役を作ります。</p>
+                <p className="rule-group-title">役（強い順）</p>
+                <ul className="guide-list compact-list">
+                  {getWaitingHandRankItems().map((item) => {
+                    const [name, example] = item.split(":");
+                    return (
+                      <li key={item}>
+                        <strong>{name}</strong>: {example?.trim() ?? ""}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            </details>
           </section>
 
           <div className="game-action-sticky">
@@ -111,6 +159,7 @@ export function GameScreen({ state, onPlayerAction, onReadyChange, onLeaveRoom, 
               toCall={state.toCall}
               currentBet={state.room?.currentBet ?? 0}
               myCurrentBet={state.currentBet}
+              myStack={state.myStack}
               mainPot={state.mainPot}
               isMyTurn={isMyTurn}
               currentTurnLabel={currentTurnLabel}
