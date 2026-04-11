@@ -35,11 +35,12 @@ export function RoomScreen({
   const activeParticipantCount =
     state.room?.activeParticipantCount ??
     (state.room?.players ?? []).filter((player) => player.connected && player.isParticipating).length;
+  const isSocketReady = state.connectionStatus === "connected";
   const selfPlayer = (state.room?.players ?? []).find((player) => player.playerId === state.playerId);
   const selfName = (state.playerName || selfPlayer?.name || "").trim();
   const isSelfParticipating = Boolean(selfPlayer?.isParticipating);
-  const canStart = Boolean(state.room && isWaiting && isSelfParticipating && activeParticipantCount >= 2);
-  const canParticipate = Boolean(selfName);
+  const canStart = Boolean(state.room && isWaiting && isSocketReady && isSelfParticipating && activeParticipantCount >= 2);
+  const canParticipate = Boolean(selfName) && isSocketReady;
   const [isStartingGame, setIsStartingGame] = useState(false);
   const players = (state.room?.players ?? []).map((player) =>
     player.playerId === state.playerId ? { ...player, name: state.playerName || player.name } : player,
@@ -87,6 +88,7 @@ export function RoomScreen({
                   showParticipationToggle
                   isSelfParticipating={isSelfParticipating}
                   canParticipate={canParticipate}
+                  disableParticipationToggle={!isSocketReady}
                   onSetParticipation={onSetParticipation}
                 />
                 <div className="action-row">
@@ -95,8 +97,9 @@ export function RoomScreen({
                   </button>
                 </div>
                 <p className="meta-text">2 人以上で開始できます。現在 {activeParticipantCount}/6 人。</p>
+                {!isSocketReady ? <p className="hint-text">接続中です。数秒後に操作できます。</p> : null}
                 {!isSelfParticipating ? <p className="hint-text">参加を押すと人数に含まれます。</p> : null}
-                {!canParticipate ? <p className="hint-text">名前入力後に参加できます。</p> : null}
+                {!selfName ? <p className="hint-text">名前入力後に参加できます。</p> : null}
                 {!canStart && isSelfParticipating ? <p className="hint-text">開始ボタンは本参加プレイヤーが 2 人以上そろうと押せます。</p> : null}
               </section>
               <section className="panel stack">

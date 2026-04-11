@@ -28,6 +28,8 @@ describe("SharePanel", () => {
     await waitFor(() => {
       expect(shareMock).toHaveBeenCalled();
     });
+    expect(shareMock).toHaveBeenCalledWith({ url: "http://localhost:4173/rooms/ROOM01" });
+    expect(shareMock.mock.calls[0]?.[0]).not.toHaveProperty("text");
     expect(screen.queryByText("共有画面を開きました。送信先を選んで共有してください。")).not.toBeInTheDocument();
   });
 

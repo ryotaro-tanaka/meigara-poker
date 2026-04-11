@@ -146,4 +146,27 @@ describe("RoomScreen", () => {
     expect(onStartGame).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: "開始中..." })).toBeDisabled();
   });
+
+  it("disables participation and start actions while websocket is connecting", () => {
+    const state = createWaitingState(2);
+    state.connectionStatus = "connecting";
+
+    render(
+      <RoomScreen
+        state={state}
+        shareUrl="http://localhost:4173/rooms/ROOM01"
+        onNameChange={vi.fn()}
+        onSetParticipation={vi.fn()}
+        onStartGame={vi.fn()}
+        onPlayerAction={vi.fn()}
+        onReadyChange={vi.fn()}
+        onLeaveRoom={vi.fn()}
+        onAcknowledgeGameOver={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "解除" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "ゲーム開始" })).toBeDisabled();
+    expect(screen.getByText("接続中です。数秒後に操作できます。")).toBeInTheDocument();
+  });
 });

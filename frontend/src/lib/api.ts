@@ -1,5 +1,9 @@
 import type { CreateRoomResponse, RoomSnapshotResponse } from "./types";
 
+const FRONTEND_PROD_HOST = "meigara-poker.ryotaro-tanaka.workers.dev";
+const BACKEND_PROD_HTTP_BASE = "https://meigara-poker-worker.ryotaro-tanaka.workers.dev";
+const BACKEND_PROD_WS_BASE = "wss://meigara-poker-worker.ryotaro-tanaka.workers.dev";
+
 async function readJson<T>(response: Response): Promise<T> {
   const text = await response.text();
 
@@ -16,12 +20,28 @@ async function readJson<T>(response: Response): Promise<T> {
 
 function getApiBaseUrl(): string | null {
   const base = import.meta.env.VITE_API_BASE_URL?.trim();
-  return base ? base : null;
+  if (base) {
+    return base;
+  }
+
+  if (typeof window !== "undefined" && window.location.host === FRONTEND_PROD_HOST) {
+    return BACKEND_PROD_HTTP_BASE;
+  }
+
+  return null;
 }
 
 function getWsBaseUrl(): string | null {
   const base = import.meta.env.VITE_WS_BASE_URL?.trim();
-  return base ? base : null;
+  if (base) {
+    return base;
+  }
+
+  if (typeof window !== "undefined" && window.location.host === FRONTEND_PROD_HOST) {
+    return BACKEND_PROD_WS_BASE;
+  }
+
+  return null;
 }
 
 function buildHttpUrl(path: string): string {

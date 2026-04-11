@@ -15,6 +15,7 @@ interface PlayerListProps {
   showParticipationToggle?: boolean;
   isSelfParticipating?: boolean;
   canParticipate?: boolean;
+  disableParticipationToggle?: boolean;
   onSetParticipation?: (participating: boolean) => void;
   roundHistoryByPlayer?: PlayerRoundHistoryByPlayer;
   expandedPlayerId?: string | null;
@@ -34,6 +35,7 @@ export function PlayerList({
   showParticipationToggle = false,
   isSelfParticipating = false,
   canParticipate = false,
+  disableParticipationToggle = false,
   onSetParticipation,
   roundHistoryByPlayer,
   expandedPlayerId = null,
@@ -132,7 +134,7 @@ export function PlayerList({
                         type="button"
                         className={isSelfParticipating ? "ghost-button" : "secondary-button"}
                         onClick={() => onSetParticipation?.(!isSelfParticipating)}
-                        disabled={!isSelfParticipating && !canParticipate}
+                        disabled={disableParticipationToggle || (!isSelfParticipating && !canParticipate)}
                       >
                         {isSelfParticipating ? "解除" : "参加"}
                       </button>
