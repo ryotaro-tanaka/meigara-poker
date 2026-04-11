@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --port 8788",
-    "deploy": "wrangler deploy",
+    "dev": "wrangler dev --config ./wrangler.toml --port 8788",
+    "deploy": "wrangler deploy --config ./wrangler.toml",
     "check": "node ./node_modules/typescript/bin/tsc --noEmit",
     "test": "node ./node_modules/vitest/vitest.mjs run",
     "import:stocks": "node ./scripts/import-stocks.mjs"

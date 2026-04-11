@@ -72,11 +72,14 @@ type ClientEvent =
 interface Env {
   DB: D1Database;
   APP_NAME: string;
+  FRONTEND_ORIGIN?: string;
   ROOMS: DurableObjectNamespace;
 }
 
 const ROOM_ID_LENGTH = 6;
 const ROOM_ID_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const CORS_ALLOWED_METHODS = "GET,POST,OPTIONS";
+const CORS_ALLOWED_HEADERS = "content-type";
 
 type LogLevel = "info" | "warn" | "error";
 
@@ -119,6 +122,46 @@ function errorJson(message: string, status = 400): Response {
     },
     { status },
   );
+}
+
+function isCorsRoute(pathname: string): boolean {
+  if (pathname === "/health" || pathname === "/rooms") {
+    return true;
+  }
+
+  if (/^\/rooms\/[A-Z0-9]+$/.test(pathname)) {
+    return true;
+  }
+
+  if (/^\/rooms\/[A-Z0-9]+\/start$/.test(pathname)) {
+    return true;
+  }
+
+  return false;
+}
+
+function getAllowedOrigin(request: Request, env: Env): string {
+  const configuredOrigin = env.FRONTEND_ORIGIN?.trim();
+
+  if (configuredOrigin) {
+    return configuredOrigin;
+  }
+
+  return request.headers.get("origin") ?? "*";
+}
+
+function withCors(response: Response, request: Request, env: Env): Response {
+  const headers = new Headers(response.headers);
+  headers.set("Access-Control-Allow-Origin", getAllowedOrigin(request, env));
+  headers.set("Access-Control-Allow-Methods", CORS_ALLOWED_METHODS);
+  headers.set("Access-Control-Allow-Headers", CORS_ALLOWED_HEADERS);
+  headers.set("Vary", "Origin");
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
 
 function toLogContext(state?: RoomState | null, extra?: RoomLogContext): RoomLogContext {
@@ -879,31 +922,36 @@ export class RoomDurableObject {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    const respond = (response: Response): Response => withCors(response, request, env);
+
+    if (request.method === "OPTIONS" && isCorsRoute(url.pathname)) {
+      return respond(new Response(null, { status: 204 }));
+    }
 
     if (request.method === "GET" && url.pathname === "/health") {
-      return handleHealth(env);
+      return respond(await handleHealth(env));
     }
 
     if (request.method === "POST" && url.pathname === "/rooms") {
-      return handleRoomCreate(request, env);
+      return respond(await handleRoomCreate(request, env));
     }
 
     const roomMatch = url.pathname.match(/^\/rooms\/([A-Z0-9]+)$/);
 
     if (request.method === "GET" && roomMatch) {
-      return handleRoomSnapshot(request, env, roomMatch[1]);
+      return respond(await handleRoomSnapshot(request, env, roomMatch[1]));
     }
 
     const startMatch = url.pathname.match(/^\/rooms\/([A-Z0-9]+)\/start$/);
 
     if (request.method === "POST" && startMatch) {
-      return handleRoomStart(request, env, startMatch[1]);
+      return respond(await handleRoomStart(request, env, startMatch[1]));
     }
 
     if (request.method === "GET" && url.pathname === "/ws") {
       return handleRoomWebSocket(request, env);
     }
 
-    return errorJson("Not found.", 404);
+    return respond(errorJson("Not found.", 404));
   },
 } satisfies ExportedHandler<Env>;
