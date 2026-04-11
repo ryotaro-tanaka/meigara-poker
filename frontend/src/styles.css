@@ -247,12 +247,14 @@ button {
 }
 
 .card-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
 .card-item {
+  flex: 0 0 152px;
+  width: 152px;
   padding: 16px;
   border-radius: 18px;
   background:
@@ -596,7 +598,7 @@ button {
 }
 
 .game-screen-mobile {
-  padding-bottom: 220px;
+  padding-bottom: 120px;
 }
 
 .game-round-summary {
@@ -695,7 +697,7 @@ button {
   }
 
   .game-screen-mobile {
-    padding-bottom: 240px;
+    padding-bottom: 132px;
   }
 
   .game-action-sticky {

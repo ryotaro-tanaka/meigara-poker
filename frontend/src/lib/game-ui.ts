@@ -55,7 +55,6 @@ export function getPositionBadgeLabel(position: PublicPlayerPosition): string | 
 
 export function getPlayerStatusSummary(player: PublicPlayerState): string {
   const tags = [
-    player.isCurrentTurn ? "手番" : null,
     player.isFolded ? "fold" : null,
     player.isAllIn ? "all-in" : null,
     player.isEliminated ? "busted" : null,

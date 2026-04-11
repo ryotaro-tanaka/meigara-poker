@@ -116,9 +116,12 @@ describe("GameScreen", () => {
     expect(screen.getByText("場札 3")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "テーブル" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "ハンド" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "プレイヤー状況" })).toBeInTheDocument();
-    expect(screen.getAllByText("総賭け金: 40").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("必要コスト: 0").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "プレイヤー" })).toBeInTheDocument();
+    expect(screen.getByText("ポット: 40")).toBeInTheDocument();
+    expect(screen.getByText("ラウンドの最低参加費: 0")).toBeInTheDocument();
+    expect(screen.queryByText("必要コスト: 0")).not.toBeInTheDocument();
+    expect(screen.queryByText("Alice が bet 10 を実行しました。")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "退出する" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "結果" })).not.toBeInTheDocument();
   });
 

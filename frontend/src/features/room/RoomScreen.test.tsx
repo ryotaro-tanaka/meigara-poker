@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { RoomScreen } from "./RoomScreen";
@@ -8,7 +8,41 @@ afterEach(() => {
   cleanup();
 });
 
-function createWaitingState(): AppState {
+function createWaitingState(playerCount = 1): AppState {
+  const players = [
+    {
+      playerId: "player-1",
+      name: "Alice",
+      joinedAt: "2026-04-11T00:00:00.000Z",
+      connected: true,
+      stack: 200,
+      currentBet: 0,
+      totalContribution: 0,
+      isFolded: false,
+      isAllIn: false,
+      isCurrentTurn: false,
+      position: null,
+      hasLeft: false,
+      isEliminated: false,
+    },
+  ];
+  if (playerCount >= 2) {
+    players.push({
+      playerId: "player-2",
+      name: "Bob",
+      joinedAt: "2026-04-11T00:00:01.000Z",
+      connected: true,
+      stack: 200,
+      currentBet: 0,
+      totalContribution: 0,
+      isFolded: false,
+      isAllIn: false,
+      isCurrentTurn: false,
+      position: null,
+      hasLeft: false,
+      isEliminated: false,
+    });
+  }
   return {
     route: { kind: "room", roomId: "ROOM01" },
     roomId: "ROOM01",
@@ -18,24 +52,8 @@ function createWaitingState(): AppState {
       roomId: "ROOM01",
       roomName: "銘柄ポーカー部屋",
       phase: "waiting",
-      players: [
-        {
-          playerId: "player-1",
-          name: "Alice",
-          joinedAt: "2026-04-11T00:00:00.000Z",
-          connected: true,
-          stack: 200,
-          currentBet: 0,
-          totalContribution: 0,
-          isFolded: false,
-          isAllIn: false,
-          isCurrentTurn: false,
-          position: null,
-          hasLeft: false,
-          isEliminated: false,
-        },
-      ],
-      playerCount: 1,
+      players,
+      playerCount,
       selectedIndustries: [],
       deckCount: 0,
       board: [],
@@ -94,10 +112,32 @@ describe("RoomScreen", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "参加者一覧" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "参加者一覧" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "招待リンク" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "ルール" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "銘柄ポーカー部屋" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "ゲーム開始" })).toBeInTheDocument();
+  });
+
+  it("shows start loading label after pressing game start", () => {
+    const onStartGame = vi.fn();
+
+    render(
+      <RoomScreen
+        state={createWaitingState(2)}
+        shareUrl="http://localhost:4173/rooms/ROOM01"
+        onNameChange={vi.fn()}
+        onStartGame={onStartGame}
+        onPlayerAction={vi.fn()}
+        onReadyChange={vi.fn()}
+        onLeaveRoom={vi.fn()}
+        onAcknowledgeGameOver={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "ゲーム開始" }));
+
+    expect(onStartGame).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "開始中..." })).toBeDisabled();
   });
 });

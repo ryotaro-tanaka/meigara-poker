@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { PlayerList } from "../../components/PlayerList";
 import { SharePanel } from "../../components/SharePanel";
 import { StatusBadge } from "../../components/StatusBadge";
@@ -30,9 +31,30 @@ export function RoomScreen({
   const phase = state.room?.phase ?? "waiting";
   const isWaiting = phase === "waiting";
   const canStart = Boolean(state.room && state.room.playerCount >= 2 && isWaiting);
+  const [isStartingGame, setIsStartingGame] = useState(false);
   const players = (state.room?.players ?? []).map((player) =>
     player.playerId === state.playerId ? { ...player, name: state.playerName || player.name } : player,
   );
+
+  useEffect(() => {
+    if (phase !== "waiting") {
+      setIsStartingGame(false);
+    }
+  }, [phase]);
+
+  useEffect(() => {
+    if (state.serverError) {
+      setIsStartingGame(false);
+    }
+  }, [state.serverError]);
+
+  function handleStartGame(): void {
+    if (!canStart || isStartingGame) {
+      return;
+    }
+    setIsStartingGame(true);
+    onStartGame();
+  }
 
   return (
     <main className="app-shell">
@@ -43,10 +65,9 @@ export function RoomScreen({
             <section className="room-main stack">
               <section className="panel stack">
                 <div className="section-heading">
-                  <h2>参加者一覧</h2>
+                  <h1 className="waiting-summary-title">{state.room?.roomName ?? "ルームを読み込み中..."}</h1>
                   <StatusBadge status={state.connectionStatus} />
                 </div>
-                <h1 className="waiting-summary-title">{state.room?.roomName ?? "ルームを読み込み中..."}</h1>
                 <PlayerList
                   players={players}
                   selfPlayerId={state.playerId}
@@ -56,8 +77,8 @@ export function RoomScreen({
                   onSelfNameChange={onNameChange}
                 />
                 <div className="action-row">
-                  <button className="primary-button" onClick={onStartGame} disabled={!canStart}>
-                    ゲーム開始
+                  <button className="primary-button" onClick={handleStartGame} disabled={!canStart || isStartingGame}>
+                    {isStartingGame ? "開始中..." : "ゲーム開始"}
                   </button>
                 </div>
                 <p className="meta-text">2 人以上で開始できます。現在 {state.room?.playerCount ?? 0}/6 人。</p>

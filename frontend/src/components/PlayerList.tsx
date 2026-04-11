@@ -59,9 +59,8 @@ export function PlayerList({
               ) : null}
               {showBettingInfo ? (
                 <div className="player-meta-grid">
-                  <span className="meta-text">stack {player.stack}</span>
-                  <span className="meta-text">bet {player.currentBet}</span>
-                  {!compactGameView ? <span className="meta-text">投入 {player.totalContribution}</span> : null}
+                  <span className="meta-text">持ち点 {player.stack}</span>
+                  <span className="meta-text">掛け金 {player.currentBet}</span>
                 </div>
               ) : null}
               {getPlayerStatusSummary(player) && !(hideEliminatedStatus && player.isEliminated) ? (

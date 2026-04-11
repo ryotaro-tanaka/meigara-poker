@@ -77,8 +77,8 @@ export function GameScreen({ state, onPlayerAction, onReadyChange, onLeaveRoom, 
           <section className="panel stack">
             <CardRow cards={state.board} hiddenCount={hiddenBoardCount} title="テーブル" emptyLabel="まだ公開されていません。" />
             <div className="info-grid">
-              <p className="meta-text">総賭け金: {state.mainPot?.amount ?? state.pot}</p>
-              <p className="meta-text">必要コスト: {state.toCall}</p>
+              <p className="meta-text">ポット: {state.mainPot?.amount ?? state.pot}</p>
+              <p className="meta-text">ラウンドの最低参加費: {state.toCall}</p>
             </div>
           </section>
 
@@ -91,15 +91,9 @@ export function GameScreen({ state, onPlayerAction, onReadyChange, onLeaveRoom, 
 
           <section className="panel stack">
             <div className="section-heading">
-              <h2>プレイヤー状況</h2>
+              <h2>プレイヤー</h2>
             </div>
             <PlayerList players={state.room?.players ?? []} selfPlayerId={state.playerId} showBettingInfo compactGameView={false} />
-            <div className="info-grid">
-              <p className="meta-text">現在の手番: {currentTurnLabel}</p>
-              <p className="meta-text">必要コスト: {state.toCall}</p>
-              <p className="meta-text">総賭け金: {state.mainPot?.amount ?? state.pot}</p>
-            </div>
-            {state.lastActionMessage ? <p className="meta-text">{state.lastActionMessage}</p> : null}
           </section>
 
           <div className="game-action-sticky">
@@ -113,9 +107,6 @@ export function GameScreen({ state, onPlayerAction, onReadyChange, onLeaveRoom, 
               currentTurnLabel={currentTurnLabel}
               onAction={onPlayerAction}
             />
-            <button className="ghost-button" onClick={onLeaveRoom}>
-              退出する
-            </button>
           </div>
         </>
       )}
