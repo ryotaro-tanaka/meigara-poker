@@ -112,8 +112,12 @@ export function getStandingStatusLabel(status: FinalStanding["status"]): string 
 export function getWaitingRuleItems(): string[] {
   return [
     "手札 2 枚と場札 5 枚で最強の 5 枚役を作ります。",
-    "流れ: 手札確認 -> 賭け -> 場札3枚 -> 賭け -> 場札4枚目 -> 賭け -> 場札5枚目 -> 賭け -> 勝負",
+    "強い役を作るだけでなく、賭け方も勝負のポイントです。",
   ];
+}
+
+export function getWaitingFlowItems(): string[] {
+  return ["手札", "場札3枚", "場札4枚目", "場札5枚目", "勝負"];
 }
 
 export function getWaitingHandRankItems(): string[] {

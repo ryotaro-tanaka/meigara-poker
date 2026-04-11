@@ -3,7 +3,7 @@ import { PlayerList } from "../../components/PlayerList";
 import { SharePanel } from "../../components/SharePanel";
 import { StatusBadge } from "../../components/StatusBadge";
 import { GameScreen } from "../game/GameScreen";
-import { getWaitingHandRankItems, getWaitingRuleItems } from "../../lib/game-ui";
+import { getWaitingFlowItems, getWaitingHandRankItems, getWaitingRuleItems } from "../../lib/game-ui";
 import type { AppState } from "../../state/app-state";
 import type { PlayerActionType } from "../../lib/types";
 
@@ -94,18 +94,49 @@ export function RoomScreen({
                 <div className="section-heading">
                   <h2>ルール</h2>
                 </div>
-                <p className="meta-text">{getWaitingRuleItems()[0]}</p>
+                <p className="rule-lead">{getWaitingRuleItems()[0]}</p>
                 <p className="meta-text">{getWaitingRuleItems()[1]}</p>
-                <section className="rule-card-grid">
-                  {getWaitingHandRankItems().map((item) => {
-                    const [name, example] = item.split(":");
-                    return (
-                      <article key={item} className="rule-card">
-                        <strong>{name}</strong>
-                        <p className="meta-text">{example?.trim() ?? ""}</p>
-                      </article>
-                    );
-                  })}
+                <section className="stack tight">
+                  <p className="rule-flow-label">流れ</p>
+                  <ol className="rule-flow-chips" aria-label="ゲームの流れ">
+                    {getWaitingFlowItems().map((step) => (
+                      <li key={step} className="rule-flow-chip-item">
+                        <span className="rule-flow-chip">{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+                <section className="stack tight">
+                  <p className="rule-group-title">上位役</p>
+                  <section className="rule-card-grid">
+                    {getWaitingHandRankItems()
+                      .slice(0, 5)
+                      .map((item) => {
+                        const [name, example] = item.split(":");
+                        return (
+                          <article key={item} className="rule-card">
+                            <strong>{name}</strong>
+                            <p className="meta-text">{example?.trim() ?? ""}</p>
+                          </article>
+                        );
+                      })}
+                  </section>
+                </section>
+                <section className="stack tight">
+                  <p className="rule-group-title">基本役</p>
+                  <section className="rule-card-grid">
+                    {getWaitingHandRankItems()
+                      .slice(5)
+                      .map((item) => {
+                        const [name, example] = item.split(":");
+                        return (
+                          <article key={item} className="rule-card">
+                            <strong>{name}</strong>
+                            <p className="meta-text">{example?.trim() ?? ""}</p>
+                          </article>
+                        );
+                      })}
+                  </section>
                 </section>
               </section>
             </section>

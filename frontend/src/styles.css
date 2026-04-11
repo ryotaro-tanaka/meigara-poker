@@ -434,6 +434,65 @@ button {
   gap: 10px;
 }
 
+.rule-lead {
+  margin: 0;
+  color: #2a3a4f;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.rule-flow-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rule-flow-label {
+  margin: 0;
+  color: #6a7a8e;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rule-flow-chip-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rule-flow-chip-item:not(:last-child)::after {
+  content: "\2192";
+  color: rgba(35, 64, 91, 0.38);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.rule-flow-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(19, 32, 51, 0.08);
+  color: #23405b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.rule-group-title {
+  margin: 0;
+  color: #5c6d82;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .rule-card {
   padding: 10px 12px;
   border-radius: 12px;
@@ -628,7 +687,7 @@ button {
 }
 
 .game-screen-mobile {
-  padding-bottom: 88px;
+  padding-bottom: 0;
 }
 
 .game-round-summary {
@@ -727,7 +786,7 @@ button {
   }
 
   .game-screen-mobile {
-    padding-bottom: 96px;
+    padding-bottom: 0;
   }
 
   .game-action-sticky {
