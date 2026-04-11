@@ -1,0 +1,11 @@
+{
+  "name": "meigara-poker-monorepo",
+  "private": true,
+  "scripts": {
+    "check": "npm --prefix frontend run check && npm --prefix backend run check",
+    "test": "npm --prefix frontend run test && npm --prefix backend run test",
+    "deploy": "npm run deploy:frontend && npm run deploy:backend",
+    "deploy:frontend": "npm --prefix frontend run build && wrangler deploy",
+    "deploy:backend": "npm --prefix backend run deploy"
+  }
+}
