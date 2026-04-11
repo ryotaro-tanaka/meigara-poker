@@ -18,6 +18,18 @@
 - `backend/migrations/` の初期スキーマを `--remote` で D1 に適用する
 - `frontend/` の依存関係を入れて開発サーバーを起動する
 
+## Local Dev
+- 両方を同時に前面起動:
+  - `npm run dev`
+  - 停止は `Ctrl+C`
+- 両方をバックグラウンド起動:
+  - `npm run dev:bg`
+- バックグラウンド停止:
+  - `npm run dev:stop`
+- バックグラウンドログ:
+  - `.devlogs/backend.log`
+  - `.devlogs/frontend.log`
+
 ## Deploy
 - ルートから frontend + backend をまとめてデプロイ:
   - `npm run deploy`
