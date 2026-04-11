@@ -65,7 +65,7 @@ export function useRoomConnection({ state, dispatch }: UseRoomConnectionOptions)
           message: error instanceof Error ? error.message : "Failed to load room.",
         });
       });
-  }, [dispatch, state.playerId, state.playerName, state.route]);
+  }, [dispatch, state.playerId, state.route]);
 
   useEffect(() => {
     if (state.route.kind !== "room" || !state.playerId) {
@@ -114,7 +114,7 @@ export function useRoomConnection({ state, dispatch }: UseRoomConnectionOptions)
       socket.close();
       socketRef.current = null;
     };
-  }, [dispatch, state.playerId, state.playerName, state.route]);
+  }, [dispatch, state.playerId, state.route]);
 
   useEffect(() => {
     if (state.playerName) {
@@ -127,10 +127,8 @@ export function useRoomConnection({ state, dispatch }: UseRoomConnectionOptions)
       const socket = socketRef.current;
 
       if (!socket || socket.readyState !== WebSocket.OPEN) {
-        dispatch({
-          type: "ws_failed",
-          message: "WebSocket is not connected yet.",
-        });
+        // Keep UI responsive on mobile while socket is connecting.
+        // We intentionally skip sending here instead of surfacing an error toast.
         return;
       }
 
