@@ -1,4 +1,5 @@
 # meigara-poker
+[![Deploy](https://github.com/ryotaro-tanaka/meigara-poker/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/ryotaro-tanaka/meigara-poker/actions/workflows/deploy.yml)
 
 銘柄ポーカーのプロトタイプです。
 
