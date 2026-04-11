@@ -15,8 +15,6 @@ export function SharePanel({ shareUrl }: SharePanelProps) {
 
     try {
       await navigator.share({
-        title: "銘柄ポーカーの部屋に参加",
-        text: "この URL から同じ部屋に参加できます。",
         url: shareUrl,
       });
       setShareMessage(null);
