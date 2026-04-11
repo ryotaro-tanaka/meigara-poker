@@ -52,7 +52,7 @@ describe("PlayerList", () => {
   });
 
   it("shows simplified betting labels in game view", () => {
-    render(
+    const { container } = render(
       <PlayerList
         players={[
           {
@@ -73,11 +73,14 @@ describe("PlayerList", () => {
         ]}
         selfPlayerId="player-1"
         showBettingInfo
+        compactGameView
       />,
     );
 
     expect(screen.getByText("持ち点 199")).toBeInTheDocument();
     expect(screen.getByText("掛け金 1")).toBeInTheDocument();
+    expect(screen.getByText("接続中")).toBeInTheDocument();
+    expect(container.querySelectorAll(".player-row-main")).toHaveLength(1);
     expect(screen.queryByText("stack 199")).not.toBeInTheDocument();
     expect(screen.queryByText("bet 1")).not.toBeInTheDocument();
     expect(screen.queryByText("投入 1")).not.toBeInTheDocument();

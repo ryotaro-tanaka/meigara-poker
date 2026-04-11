@@ -247,14 +247,14 @@ button {
 }
 
 .card-row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
 .card-item {
-  flex: 0 0 152px;
-  width: 152px;
+  min-width: 0;
+  width: 100%;
   padding: 16px;
   border-radius: 18px;
   background:
@@ -320,6 +320,17 @@ button {
   color: rgba(246, 248, 251, 0.82);
 }
 
+.card-item-info {
+  border-style: dashed;
+  background: rgba(240, 245, 248, 0.86);
+}
+
+.card-info-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .card-suit,
 .card-name {
   margin: 0;
@@ -361,6 +372,21 @@ button {
 
 .player-item {
   border: 1px solid transparent;
+}
+
+.player-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+}
+
+.player-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .player-item-empty {
@@ -435,6 +461,10 @@ button {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(74px, auto));
   gap: 6px 12px;
+}
+
+.player-meta-grid.player-meta-grid-compact {
+  grid-template-columns: repeat(auto-fit, minmax(88px, auto));
 }
 
 .player-hole-cards {
@@ -598,7 +628,7 @@ button {
 }
 
 .game-screen-mobile {
-  padding-bottom: 120px;
+  padding-bottom: 88px;
 }
 
 .game-round-summary {
@@ -660,7 +690,7 @@ button {
   .hero-topline,
   .section-heading,
   .action-row,
-  .player-item,
+  .player-list:not(.player-list-compact) .player-item,
   .result-list li {
     flex-direction: column;
     align-items: flex-start;
@@ -697,7 +727,7 @@ button {
   }
 
   .game-screen-mobile {
-    padding-bottom: 132px;
+    padding-bottom: 96px;
   }
 
   .game-action-sticky {
@@ -705,6 +735,12 @@ button {
   }
 
   .round-track {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 380px) {
+  .card-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

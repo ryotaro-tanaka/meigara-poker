@@ -103,7 +103,7 @@ function createBaseState(): AppState {
 
 describe("GameScreen", () => {
   it("shows compact in-hand layout with round header and core betting info", () => {
-    render(
+    const { container } = render(
       <GameScreen
         state={createBaseState()}
         onPlayerAction={vi.fn()}
@@ -119,6 +119,8 @@ describe("GameScreen", () => {
     expect(screen.getByRole("heading", { name: "プレイヤー" })).toBeInTheDocument();
     expect(screen.getByText("ポット: 40")).toBeInTheDocument();
     expect(screen.getByText("ラウンドの最低参加費: 0")).toBeInTheDocument();
+    expect(screen.getByText("持ち点: 180")).toBeInTheDocument();
+    expect(container.querySelectorAll(".card-item-info")).toHaveLength(2);
     expect(screen.queryByText("必要コスト: 0")).not.toBeInTheDocument();
     expect(screen.queryByText("Alice が bet 10 を実行しました。")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "退出する" })).not.toBeInTheDocument();

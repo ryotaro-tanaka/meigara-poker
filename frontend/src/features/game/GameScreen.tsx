@@ -75,25 +75,34 @@ export function GameScreen({ state, onPlayerAction, onReadyChange, onLeaveRoom, 
           </section>
 
           <section className="panel stack">
-            <CardRow cards={state.board} hiddenCount={hiddenBoardCount} title="テーブル" emptyLabel="まだ公開されていません。" />
-            <div className="info-grid">
-              <p className="meta-text">ポット: {state.mainPot?.amount ?? state.pot}</p>
-              <p className="meta-text">ラウンドの最低参加費: {state.toCall}</p>
-            </div>
+            <CardRow
+              cards={state.board}
+              hiddenCount={hiddenBoardCount}
+              title="テーブル"
+              emptyLabel="まだ公開されていません。"
+              trailingInfoCard={
+                <>
+                  <p className="meta-text">ポット: {state.mainPot?.amount ?? state.pot}</p>
+                  <p className="meta-text">ラウンドの最低参加費: {state.toCall}</p>
+                </>
+              }
+            />
           </section>
 
           <section className="panel stack">
-            <CardRow cards={state.hand} title="ハンド" emptyLabel="配布待ちです。" />
-            <div className="info-grid">
-              <p className="meta-text">持ち点: {state.myStack}</p>
-            </div>
+            <CardRow
+              cards={state.hand}
+              title="ハンド"
+              emptyLabel="配布待ちです。"
+              trailingInfoCard={<p className="meta-text">持ち点: {state.myStack}</p>}
+            />
           </section>
 
           <section className="panel stack">
             <div className="section-heading">
               <h2>プレイヤー</h2>
             </div>
-            <PlayerList players={state.room?.players ?? []} selfPlayerId={state.playerId} showBettingInfo compactGameView={false} />
+            <PlayerList players={state.room?.players ?? []} selfPlayerId={state.playerId} showBettingInfo compactGameView />
           </section>
 
           <div className="game-action-sticky">
