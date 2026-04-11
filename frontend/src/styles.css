@@ -532,6 +532,33 @@ button {
   gap: 14px;
 }
 
+.action-panel-collapsed {
+  opacity: 0.9;
+}
+
+.round-track {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.round-chip {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(19, 32, 51, 0.08);
+  color: #28415d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.round-chip-active {
+  background: rgba(29, 119, 107, 0.2);
+  color: #145f55;
+}
+
 @media (max-width: 720px) {
   .hero-topline,
   .section-heading,
@@ -578,5 +605,9 @@ button {
 
   .game-action-sticky {
     bottom: 8px;
+  }
+
+  .round-track {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

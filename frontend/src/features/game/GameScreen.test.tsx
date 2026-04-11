@@ -102,7 +102,7 @@ function createBaseState(): AppState {
 }
 
 describe("GameScreen", () => {
-  it("shows only in-hand priority sections during active play", () => {
+  it("shows compact in-hand layout with round header and core betting info", () => {
     render(
       <GameScreen
         state={createBaseState()}
@@ -113,11 +113,31 @@ describe("GameScreen", () => {
       />,
     );
 
-    expect(screen.getByText("round: flop")).toBeInTheDocument();
+    expect(screen.getByText("場札 3")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "自分の手札" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "場札" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "参加者" })).toBeInTheDocument();
+    expect(screen.getByText("main pot: 40")).toBeInTheDocument();
+    expect(screen.getByText("コール必要額: 0")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "結果" })).not.toBeInTheDocument();
+  });
+
+  it("shows collapsed footer message when it is not my turn", () => {
+    const state = createBaseState();
+    state.currentTurnPlayerId = "player-2";
+
+    render(
+      <GameScreen
+        state={state}
+        onPlayerAction={vi.fn()}
+        onReadyChange={vi.fn()}
+        onLeaveRoom={vi.fn()}
+        onAcknowledgeGameOver={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("順番待ちです。手番: Bob")).toBeInTheDocument();
+    expect(screen.getByText("いまは順番待ちです。手番が来ると操作できます。")).toBeInTheDocument();
   });
 
   it("shows between-hands result and ready controls", () => {

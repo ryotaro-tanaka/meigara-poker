@@ -23,6 +23,7 @@ export function GameScreen({ state, onPlayerAction, onReadyChange, onLeaveRoom, 
   const hiddenBoardCount = Math.max(0, 5 - state.board.length);
   const currentTurnLabel = getCurrentTurnLabel(state);
   const phaseLabel = state.room?.phase ?? "waiting";
+  const isMyTurn = state.currentTurnPlayerId === state.playerId;
 
   return (
     <section className="stack game-screen-mobile">
@@ -58,37 +59,54 @@ export function GameScreen({ state, onPlayerAction, onReadyChange, onLeaveRoom, 
           <section className="panel stack game-round-summary">
             <div className="hero-topline">
               <p className="eyebrow">Round</p>
-              <p className="meta-text">現在の手番: {currentTurnLabel}</p>
             </div>
-            <div className="hero-stats">
-              <span className="hero-stat">round: {phaseLabel}</span>
-              <span className="hero-stat">pot: {state.pot}</span>
-              <span className="hero-stat">あなたの stack: {state.myStack}</span>
-              <span className="hero-stat">あなたの bet: {state.currentBet}</span>
-              <span className="hero-stat">call: {state.toCall}</span>
+            <div className="round-track" role="list" aria-label="ラウンド進行">
+              {[
+                { label: "場札 0", phase: "preflop" },
+                { label: "場札 3", phase: "flop" },
+                { label: "場札 4", phase: "turn" },
+                { label: "場札 5", phase: "river" },
+              ].map((step) => (
+                <span key={step.phase} role="listitem" className={`round-chip${step.phase === phaseLabel ? " round-chip-active" : ""}`}>
+                  {step.label}
+                </span>
+              ))}
             </div>
           </section>
 
-          <CardRow cards={state.hand} title="自分の手札" emptyLabel="配布待ちです。" />
           <CardRow cards={state.board} hiddenCount={hiddenBoardCount} title="場札" emptyLabel="まだ公開されていません。" />
+          <CardRow cards={state.hand} title="自分の手札" emptyLabel="配布待ちです。" />
+
+          <section className="panel stack">
+            <div className="section-heading">
+              <h2>いま必要な情報</h2>
+            </div>
+            <div className="info-grid">
+              <p className="meta-text">main pot: {state.mainPot?.amount ?? state.pot}</p>
+              <p className="meta-text">コール必要額: {state.toCall}</p>
+              <p className="meta-text">現在の手番: {currentTurnLabel}</p>
+              <p className="meta-text">あなたの stack: {state.myStack}</p>
+            </div>
+          </section>
 
           <section className="panel stack">
             <div className="section-heading">
               <h2>参加者</h2>
             </div>
-            <PlayerList players={state.room?.players ?? []} selfPlayerId={state.playerId} showBettingInfo compactGameView />
+            <PlayerList players={state.room?.players ?? []} selfPlayerId={state.playerId} showBettingInfo compactGameView={false} />
           </section>
 
           {state.lastActionMessage ? <p className="hint-text">{state.lastActionMessage}</p> : null}
 
           <div className="game-action-sticky">
+            {!isMyTurn ? <p className="meta-text">順番待ちです。手番: {currentTurnLabel}</p> : null}
             <ActionPanel
               availableActions={state.availableActions}
               toCall={state.toCall}
               currentBet={state.room?.currentBet ?? 0}
               myCurrentBet={state.currentBet}
               mainPot={state.mainPot}
-              isMyTurn={state.currentTurnPlayerId === state.playerId}
+              isMyTurn={isMyTurn}
               currentTurnLabel={currentTurnLabel}
               onAction={onPlayerAction}
             />
