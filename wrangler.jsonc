@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "meigara-poker",
+  "compatibility_date": "2026-04-11",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "frontend/dist"
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ]
+}
