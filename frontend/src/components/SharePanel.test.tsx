@@ -3,44 +3,44 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SharePanel } from "./SharePanel";
 
-const originalClipboard = navigator.clipboard;
+const originalShare = navigator.share;
 
 afterEach(() => {
   cleanup();
-  Object.defineProperty(navigator, "clipboard", {
+  Object.defineProperty(navigator, "share", {
     configurable: true,
-    value: originalClipboard,
+    value: originalShare,
   });
 });
 
 describe("SharePanel", () => {
-  it("shows success feedback after copying the room url", async () => {
-    Object.defineProperty(navigator, "clipboard", {
+  it("shows success feedback after invoking native share", async () => {
+    Object.defineProperty(navigator, "share", {
       configurable: true,
-      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+      value: vi.fn().mockResolvedValue(undefined),
     });
 
     render(<SharePanel shareUrl="http://localhost:4173/rooms/ROOM01" />);
 
-    fireEvent.click(screen.getByRole("button", { name: "URL をコピー" }));
+    fireEvent.click(screen.getByRole("button", { name: "共有する" }));
 
     await waitFor(() => {
-      expect(screen.getByText("URL をコピーしました。参加する人にそのまま送れます。")).toBeInTheDocument();
+      expect(screen.getByText("共有画面を開きました。送信先を選んで共有してください。")).toBeInTheDocument();
     });
   });
 
-  it("shows failure feedback when clipboard write fails", async () => {
-    Object.defineProperty(navigator, "clipboard", {
+  it("shows guidance when native share is unavailable", async () => {
+    Object.defineProperty(navigator, "share", {
       configurable: true,
-      value: { writeText: vi.fn().mockRejectedValue(new Error("copy failed")) },
+      value: undefined,
     });
 
     render(<SharePanel shareUrl="http://localhost:4173/rooms/ROOM01" />);
 
-    fireEvent.click(screen.getByRole("button", { name: "URL をコピー" }));
+    fireEvent.click(screen.getByRole("button", { name: "共有する" }));
 
     await waitFor(() => {
-      expect(screen.getByText("コピーに失敗しました。URL を手動で選択して共有してください。")).toBeInTheDocument();
+      expect(screen.getByText("この端末では共有ボタンが使えません。URL を手動で送ってください。")).toBeInTheDocument();
     });
   });
 });

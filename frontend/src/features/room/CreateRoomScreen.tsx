@@ -15,12 +15,8 @@ export function CreateRoomScreen({ defaultRoomName, isSubmitting, error, onSubmi
       <section className="hero-card home-hero">
         <p className="eyebrow">Meigara Poker</p>
         <h1>銘柄ポーカー</h1>
-        <p className="description">部屋を作って、2〜6 人でそのまま遊べるオンラインポーカーです。</p>
-        <div className="hero-stats">
-          <span className="hero-stat">2〜6 人</span>
-          <span className="hero-stat">手札 2 枚 + 場札 5 枚</span>
-          <span className="hero-stat">SB / BB とベッティングあり</span>
-        </div>
+        <p className="description">ポーカーは心理戦。強い手で勝つか、弱い手でも相手を降ろして勝つか。</p>
+        <p className="description">勝敗は賭け方で決まる。このゲームは数字が 0〜9 なので、役ができやすくアクションが増えます。</p>
       </section>
 
       <section className="content-grid">
@@ -41,13 +37,6 @@ export function CreateRoomScreen({ defaultRoomName, isSubmitting, error, onSubmi
             {isSubmitting ? "作成中..." : "部屋を作成"}
           </button>
           {error ? <p className="error-text">{error}</p> : null}
-        </section>
-
-        <section className="panel stack">
-          <div className="section-heading">
-            <h2>遊び方</h2>
-          </div>
-          <p className="meta-text">待機画面で名前を決めて URL を共有し、2 人以上そろったらゲームを始めます。</p>
         </section>
       </section>
     </main>

@@ -7,6 +7,8 @@ interface PlayerListProps {
   showBettingInfo?: boolean;
   readyPlayerIds?: string[];
   compactGameView?: boolean;
+  totalSlots?: number;
+  hideEliminatedStatus?: boolean;
 }
 
 export function PlayerList({
@@ -15,43 +17,59 @@ export function PlayerList({
   showBettingInfo = false,
   readyPlayerIds = [],
   compactGameView = false,
+  totalSlots = players.length,
+  hideEliminatedStatus = false,
 }: PlayerListProps) {
+  const slots = Array.from({ length: Math.max(totalSlots, players.length) }, (_, index) => players[index] ?? null);
+
   return (
     <ul className="player-list">
-      {players.map((player) => (
-        <li
-          key={player.playerId}
-          className={`player-item${player.isCurrentTurn ? " player-item-active" : ""}${player.isFolded ? " player-item-folded" : ""}`}
-        >
-          <div className="stack tight">
-            <div className="player-title-row">
-              <strong>{player.name || "名前未設定"}</strong>
-              {player.playerId === selfPlayerId ? <span className="chip">あなた</span> : null}
-              {getPositionBadgeLabel(player.position) ? <span className="chip neutral">{getPositionBadgeLabel(player.position)}</span> : null}
-              {readyPlayerIds.includes(player.playerId) ? <span className="chip neutral">Ready</span> : null}
+      {slots.map((player, index) =>
+        player ? (
+          <li
+            key={player.playerId}
+            className={`player-item${player.isCurrentTurn ? " player-item-active" : ""}${player.isFolded ? " player-item-folded" : ""}`}
+          >
+            <div className="stack tight">
+              <div className="player-title-row">
+                <strong>{player.name || "名前未設定"}</strong>
+                {player.playerId === selfPlayerId ? <span className="chip">あなた</span> : null}
+                {getPositionBadgeLabel(player.position) ? <span className="chip neutral">{getPositionBadgeLabel(player.position)}</span> : null}
+                {readyPlayerIds.includes(player.playerId) ? <span className="chip neutral">Ready</span> : null}
+              </div>
+              {compactGameView ? (
+                <div className="player-hole-cards" aria-label={`${player.name || "名前未設定"} の伏せカード`}>
+                  <span className="mini-card" />
+                  <span className="mini-card" />
+                </div>
+              ) : null}
+              {showBettingInfo ? (
+                <div className="player-meta-grid">
+                  <span className="meta-text">stack {player.stack}</span>
+                  <span className="meta-text">bet {player.currentBet}</span>
+                  {!compactGameView ? <span className="meta-text">投入 {player.totalContribution}</span> : null}
+                </div>
+              ) : null}
+              {getPlayerStatusSummary(player) && !(hideEliminatedStatus && player.isEliminated) ? (
+                <span className="meta-text">{getPlayerStatusSummary(player)}</span>
+              ) : null}
             </div>
-            {compactGameView ? (
-              <div className="player-hole-cards" aria-label={`${player.name || "名前未設定"} の伏せカード`}>
-                <span className="mini-card" />
-                <span className="mini-card" />
+            <span className={`status-dot ${player.connected ? "online" : "offline"}${player.isCurrentTurn ? " active" : ""}`}>
+              {player.connected ? "接続中" : "切断"}
+            </span>
+          </li>
+        ) : (
+          <li key={`empty-slot-${index}`} className="player-item player-item-empty">
+            <div className="stack tight">
+              <div className="player-title-row">
+                <strong>空き枠</strong>
+                <span className="chip neutral">{index + 1}/6</span>
               </div>
-            ) : null}
-            {showBettingInfo ? (
-              <div className="player-meta-grid">
-                <span className="meta-text">stack {player.stack}</span>
-                <span className="meta-text">bet {player.currentBet}</span>
-                {!compactGameView ? <span className="meta-text">投入 {player.totalContribution}</span> : null}
-              </div>
-            ) : null}
-            {getPlayerStatusSummary(player) ? (
-              <span className="meta-text">{getPlayerStatusSummary(player)}</span>
-            ) : null}
-          </div>
-          <span className={`status-dot ${player.connected ? "online" : "offline"}${player.isCurrentTurn ? " active" : ""}`}>
-            {player.connected ? "接続中" : "切断"}
-          </span>
-        </li>
-      ))}
+              <span className="meta-text">参加者を待っています</span>
+            </div>
+          </li>
+        ),
+      )}
     </ul>
   );
 }

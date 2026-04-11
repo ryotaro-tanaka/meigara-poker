@@ -47,8 +47,10 @@ export function App() {
     <RoomScreen
       state={state}
       shareUrl={window.location.href}
-      onNameChange={(name) => dispatch({ type: "player_name_changed", name })}
-      onNameSubmit={() => sendEvent({ type: "set_name", name: state.playerName })}
+      onNameChange={(name) => {
+        dispatch({ type: "player_name_changed", name });
+        sendEvent({ type: "set_name", name });
+      }}
       onStartGame={() => sendEvent({ type: "start_game" })}
       onPlayerAction={(action, amount) => sendEvent({ type: "player_action", action, amount })}
       onReadyChange={(ready) => sendEvent({ type: "set_ready", ready })}

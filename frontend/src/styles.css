@@ -321,6 +321,12 @@ button {
   border: 1px solid transparent;
 }
 
+.player-item-empty {
+  border-style: dashed;
+  border-color: rgba(19, 32, 51, 0.18);
+  background: rgba(240, 245, 248, 0.56);
+}
+
 .player-item-active {
   border-color: rgba(29, 119, 107, 0.26);
   background: rgba(29, 119, 107, 0.1);
