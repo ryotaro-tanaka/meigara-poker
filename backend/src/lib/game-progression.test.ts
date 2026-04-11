@@ -394,6 +394,71 @@ describe("game progression", () => {
     expect(showdown.results?.results.find((entry) => entry.playerId === "player-3")?.amountWon).toBe(0);
   });
 
+  it("settles showdown when a side pot has exactly one eligible player", () => {
+    const riverState: RoomState = {
+      ...makeWaitingState(makePlayers(2)),
+      phase: "river",
+      handsByPlayer: {
+        "player-1": [card("情報・通信業", 9, "p1a"), card("建設業", 9, "p1b")],
+        "player-2": [card("情報・通信業", 8, "p2a"), card("建設業", 8, "p2b")],
+      },
+      board: [
+        card("小売業", 9, "b1"),
+        card("銀行業", 8, "b2"),
+        card("情報・通信業", 7, "b3"),
+        card("建設業", 6, "b4"),
+        card("小売業", 4, "b5"),
+      ],
+      boardRevealCount: 5,
+      stacks: {
+        "player-1": 0,
+        "player-2": 8,
+      },
+      contributions: {
+        "player-1": 110,
+        "player-2": 2,
+      },
+      currentBets: {
+        "player-1": 110,
+        "player-2": 2,
+      },
+      pot: 112,
+      sidePots: [
+        { amount: 4, eligiblePlayerIds: ["player-1", "player-2"] },
+        { amount: 108, eligiblePlayerIds: ["player-1"] },
+      ],
+      foldedPlayerIds: [],
+      allInPlayerIds: ["player-1"],
+      dealerIndex: 0,
+      smallBlindIndex: 0,
+      bigBlindIndex: 1,
+      currentTurnPlayerId: "player-2",
+      currentBet: 110,
+      minRaise: 2,
+      lastAggressorPlayerId: "player-1",
+      availableActions: {
+        "player-1": [],
+        "player-2": ["fold", "all-in"],
+      },
+      actionState: { playersToAct: ["player-2"] },
+      leftPlayerIds: [],
+      disconnectedPlayerIds: [],
+      gameEnded: false,
+      gameOverReason: null,
+      finalStandings: [],
+      readyPlayerIds: [],
+    };
+
+    const showdown = applyPlayerAction(riverState, { playerId: "player-2", action: "all-in" });
+
+    expect(showdown.phase).toBe("between_hands");
+    expect(showdown.results?.sidePots).toEqual([{ amount: 100, eligiblePlayerIds: ["player-1"], winnerPlayerIds: ["player-1"] }]);
+    expect(showdown.results?.results.find((entry) => entry.playerId === "player-1")?.amountWon).toBe(120);
+    expect(showdown.results?.results.find((entry) => entry.playerId === "player-2")?.amountWon).toBe(0);
+    const totalWon = showdown.results?.results.reduce((sum, entry) => sum + entry.amountWon, 0);
+    expect(totalWon).toBe(120);
+  });
+
   it("keeps result display while resetting hand-scoped betting state between hands", () => {
     let state = createStartedRoomState(makeWaitingState());
 

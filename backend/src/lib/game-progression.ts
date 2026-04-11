@@ -823,25 +823,42 @@ function settleShowdown(state: RoomState): RoomState {
 
   for (const sidePot of nextState.sidePots) {
     const eligibleEntries = handEntries.filter((entry) => sidePot.eligiblePlayerIds.includes(entry.playerId));
-    const result = compareHands(eligibleEntries);
-    const splitAmount = Math.floor(sidePot.amount / result.winners.length);
-    let remainder = sidePot.amount % result.winners.length;
-
-    for (const winner of result.winners) {
-      winnings[winner.playerId] = (winnings[winner.playerId] ?? 0) + splitAmount;
+    if (eligibleEntries.length === 0) {
+      throw new Error("Side pot has no eligible players.");
     }
 
-    const orderedWinners = result.winners
-      .map((winner) => winner.playerId)
-      .sort((left, right) => getPlayerIndex(nextState, left) - getPlayerIndex(nextState, right));
+    let orderedWinners: string[];
 
-    for (const playerId of orderedWinners) {
-      if (remainder === 0) {
-        break;
+    if (eligibleEntries.length === 1) {
+      const winnerPlayerId = eligibleEntries[0]?.playerId;
+
+      if (!winnerPlayerId) {
+        throw new Error("Failed to resolve side pot winner.");
       }
 
-      winnings[playerId] = (winnings[playerId] ?? 0) + 1;
-      remainder -= 1;
+      winnings[winnerPlayerId] = (winnings[winnerPlayerId] ?? 0) + sidePot.amount;
+      orderedWinners = [winnerPlayerId];
+    } else {
+      const result = compareHands(eligibleEntries);
+      const splitAmount = Math.floor(sidePot.amount / result.winners.length);
+      let remainder = sidePot.amount % result.winners.length;
+
+      for (const winner of result.winners) {
+        winnings[winner.playerId] = (winnings[winner.playerId] ?? 0) + splitAmount;
+      }
+
+      orderedWinners = result.winners
+        .map((winner) => winner.playerId)
+        .sort((left, right) => getPlayerIndex(nextState, left) - getPlayerIndex(nextState, right));
+
+      for (const playerId of orderedWinners) {
+        if (remainder === 0) {
+          break;
+        }
+
+        winnings[playerId] = (winnings[playerId] ?? 0) + 1;
+        remainder -= 1;
+      }
     }
 
     sidePotResults.push({
